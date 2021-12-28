@@ -4,14 +4,21 @@ classes to represent the board of the game
 board positions go from 1 to 24 to conform to standard backgammon notation
 """
 from typing import NamedTuple
+from random import randrange
+
 
 MIN_POSITION = 0
 MAX_POSITION = 23
 
 
-def white_to_black(position: int) -> int:
-    assert MIN_POSITION <= position <= MAX_POSITION
-    return list(range(MIN_POSITION, MAX_POSITION + 1))[-position]
+def convert_coordinates(position: int) -> int:
+    assert MIN_POSITION <= position
+    lookup = list(range(12, 24)) + list(range(12))
+    return lookup[position]
+
+
+def sorted_inds(l: list, key_func):
+    return sorted(range(len(l)), key=lambda k: key_func(l[k]))
 
 
 class Colors:
@@ -26,6 +33,14 @@ class Colors:
             return cls.BLACK
         else:
             raise ValueError
+
+
+class Dice:
+    def __init__(self, max_point=6):
+        self.max_point = max_point
+
+    def throw(self):
+        return randrange(self.max_point + 1), randrange(self.max_point + 1)
 
 
 class SingleMove(NamedTuple):
@@ -49,14 +64,18 @@ class Checker:
         self.color = color
         self.point = position
 
+    def __repr__(self):
+        return f'{self.color} checker at {self.point}'
+
 
 class Slot:
-    def __init__(self, white_position: int):
-        assert MIN_POSITION <= white_position <= MAX_POSITION, 'Position is out of range'
+    def __init__(self, real_position: int):
+        assert MIN_POSITION <= real_position <= MAX_POSITION, 'Position is out of range'
         self.checkers: list[Checker] = []
+        self.real_position = real_position
         self.position = {
-            Colors.WHITE: white_position,
-            Colors.BLACK: white_to_black(white_position)
+            Colors.WHITE: real_position,
+            Colors.BLACK: convert_coordinates(real_position)
         }
 
     @property
@@ -84,13 +103,20 @@ class Slot:
             raise PlacementNotPossibleError(
                 f'Cannot place checker of color {checker.color} into the slot {self.position[checker.color]}')
 
+    def __repr__(self):
+        repr = f'Slot {self.real_position}: '
+        if self.is_empty:
+            return repr + 'empty'
+        else:
+            return repr + f'{len(self.checkers)} {self.color} checkers'
+
 
 class Board:
     def __init__(self):
-        self._slots = [Slot(i) for i in range(MIN_POSITION, MAX_POSITION + 1)]
-        self.slots = {
-            Colors.WHITE: [s for s in self._slots],
-            Colors.BLACK: [s for s in self._slots[::-1]]
+        self.slots = [Slot(i) for i in range(MIN_POSITION, MAX_POSITION + 1)]
+        self.slot_lookup = {
+            Colors.WHITE: [i for i in sorted_inds(self.slots, key_func=lambda x: x.position[Colors.WHITE])],
+            Colors.BLACK: [i for i in sorted_inds(self.slots, key_func=lambda x: x.position[Colors.BLACK])]
         }
         self.moves = []
         self.checkers = {
@@ -98,22 +124,38 @@ class Board:
             Colors.BLACK: [],
         }
 
+    def get_slot(self, color: str, position: int):
+        ind = self.slot_lookup[color][position]
+        return self.slots[ind]
+
     def reset(self):
         """
         resets the board for a new game
         """
         self.checkers = {
-            Colors.WHITE: [Checker(Colors.WHITE, MAX_POSITION) for _ in range(15)],
-            Colors.BLACK: [Checker(Colors.BLACK, MAX_POSITION) for _ in range(15)],
+            Colors.WHITE: [Checker(Colors.WHITE, MIN_POSITION) for _ in range(15)],
+            Colors.BLACK: [Checker(Colors.BLACK, MIN_POSITION) for _ in range(15)],
         }
 
+        for _, checkers in self.checkers.items():
+            for c in checkers:
+                self.get_slot(c.color, c.point).checkers.append(c)
+
         self.moves = []
+
+    def _dummy_setup(self, num=1):
+        for s in self.slots:
+            if s.real_position % 2 == 0:
+                color = Colors.WHITE
+            else:
+                color = Colors.BLACK
+            s.checkers = [Checker(color, s.position[color]) for _ in range(num)]
 
     def is_single_move_obstructed(self, color: str, single_move: SingleMove):
         """
         checks if move is not obstructed by enemy's checkers
         """
-        slots = self.slots[color]
+        slots = self.slot_lookup[color]
         try:
             # check if there's a checker
             assert not slots[
@@ -148,4 +190,7 @@ class Board:
         """
 
     def do_move(self, move: Move):
-        pass
+        """
+        move checkers according to move variable
+        """
+        self.slot_lookup[move.color]
