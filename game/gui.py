@@ -28,8 +28,8 @@ class TerminalGUI:
 
     UPPER_LEFT_POINTS = list(range(12, 6, -1))
     UPPER_RIGHT_POINTS = list(range(6, 0, -1))
-    LOWER_LEFT_POINTS = list(range(13, 18, 1))
-    LOWER_RIGHT_POINTS = list(range(18, 25, 1))
+    LOWER_LEFT_POINTS = list(range(13, 19, 1))
+    LOWER_RIGHT_POINTS = list(range(19, 25, 1))
 
     def __init__(self):
         pass
