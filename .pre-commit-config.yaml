@@ -1,0 +1,28 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.0.1
+    hooks:
+    -   id: check-json
+    -   id: check-merge-conflict
+    -   id: check-yaml
+        exclude: cloud-formation
+    -   id: debug-statements
+    -   id: debug-statements
+    -   id: double-quote-string-fixer
+
+-   repo: https://gitlab.com/pycqa/flake8
+    rev: '3.9.2'
+    hooks:
+    -   id: flake8
+        exclude: ^analysis
+
+-   repo: https://github.com/asottile/reorder_python_imports
+    rev: v2.6.0
+    hooks:
+    -   id: reorder-python-imports
+
+-   repo: https://github.com/psf/black
+    rev: 21.7b0
+    hooks:
+      - id: black
+        args: [--skip-string-normalization]

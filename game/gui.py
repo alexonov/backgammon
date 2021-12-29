@@ -1,5 +1,7 @@
-from .components import Board, Colors
 import os
+
+from game.components import Board
+from game.components import Colors
 
 
 def pad_number(n, length=2):
@@ -46,7 +48,7 @@ class TerminalGUI:
                 self.HORIZONTAL_SYMBOL * (width // 2),
                 self.CROSS_SYMBOL,
                 self.HORIZONTAL_SYMBOL * (width // 2),
-                self.RIGHT_UPPER_CORNER_SYMBOL
+                self.RIGHT_UPPER_CORNER_SYMBOL,
             ]
         )
         lower_horizontal_border = ''.join(
@@ -55,12 +57,11 @@ class TerminalGUI:
                 self.HORIZONTAL_SYMBOL * (width // 2),
                 self.CROSS_SYMBOL,
                 self.HORIZONTAL_SYMBOL * (width // 2),
-                self.RIGHT_LOWER_CORNER_SYMBOL
+                self.RIGHT_LOWER_CORNER_SYMBOL,
             ]
         )
 
         board_rows = []
-        half_inner_width = len(upper_numbers[:width // 2].strip())
 
         for r_num in range(self.BOARD_HEIGHT):
             if r_num == 0:
@@ -118,20 +119,28 @@ class TerminalGUI:
             left_board = _build_board('left')
             right_board = _build_board('right')
 
-            row = self.VERTICAL_SYMBOL + left_board + self.VERTICAL_SYMBOL + right_board + self.VERTICAL_SYMBOL
+            row = (
+                self.VERTICAL_SYMBOL
+                + left_board
+                + self.VERTICAL_SYMBOL
+                + right_board
+                + self.VERTICAL_SYMBOL
+            )
             board_rows.append(row)
 
         lower_numbers = '  ' + ' '.join(pad_number(n) for n in self.LOWER_LEFT_POINTS)
         lower_numbers += f' {self.VERTICAL_SYMBOL} '
         lower_numbers += ' '.join(pad_number(n) for n in self.LOWER_RIGHT_POINTS)
 
-        board_string = '\n'.join([
-            upper_numbers,
-            upper_horizontal_border,
-            *board_rows,
-            lower_horizontal_border,
-            lower_numbers
-        ])
+        board_string = '\n'.join(
+            [
+                upper_numbers,
+                upper_horizontal_border,
+                *board_rows,
+                lower_horizontal_border,
+                lower_numbers,
+            ]
+        )
 
         os.system('clear')
         print(board_string)

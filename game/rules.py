@@ -1,9 +1,27 @@
+"""
+Main rules:
+    1. not blocking 6 in a row (unless there's a checker in front)
+"""
 import copy
 
-from .components import Board, SingleMove, Colors
+from game.components import Board
+from game.components import SingleMove
 
 
-def is_single_move_legal(board: Board, color: str, move: SingleMove):
+def rule_six_block(board: Board, move: SingleMove):
+    """
+    not blocking 6 in a row (unless there's a checker in front)
+    """
+    fake_board = copy.deepcopy(board)
+    fake_board.do_single_move(move)
+
+    # check if there are 6-blocks after the move
+    blocks = fake_board.find_blocks_min_length(move.color, 6)
+    if len(blocks) != 0:
+        pass
+
+
+def is_single_move_legal(board: Board, move: SingleMove):
     """
     checks if move can be legally made
     1. not blocking 6 in a row (unless there's a checker in front)
@@ -13,13 +31,3 @@ def is_single_move_legal(board: Board, color: str, move: SingleMove):
     5. rule of complete move (use both dice when possible)
     """
     assert board.is_single_move_possible(move), 'Move is not possible'
-
-    # use fake board to make the move and check if it breaks rules
-    fake_board = copy.deepcopy(board)
-
-    # 1. blocks of 6 and over only allowed if opponent has a checker in front
-    # a. make a fake move
-    fake_board.do_single_move(move)
-
-    # b. check if
-
