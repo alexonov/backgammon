@@ -4,7 +4,9 @@ from pathlib import Path
 
 
 def test_position():
-    file = 'bearingoff_position.pos'
+    # file = 'bearingoff_position.pos'
+    file = 'test_position.pos'
+
     with open(Path('data') / file, 'r') as f:
         data = f.readlines()
     board = Board()
