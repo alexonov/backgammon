@@ -22,6 +22,8 @@ ignore =
     E241, # multiple spaces after ','
     E202, # whitespace before ')'
 
+    W605, # invalid escape sequence '\d'
+
 max-line-length = 100
 exclude =
     .git,

@@ -46,6 +46,26 @@ def test_board_lookup(color, position, expected):
 
 
 @mark.parametrize(
+    'color, point, expected',
+    [
+        (Colors.WHITE, 0, 6),
+        (Colors.WHITE, 2, 4),
+        (Colors.WHITE, 10, 3),
+        (Colors.WHITE, 24, 0),
+        (Colors.BLACK, 13, 3),
+        (Colors.BLACK, 20, 2),
+    ],
+)
+def test_num_checkers_after_position(color, point, expected):
+    board = Board()
+    position = ['1[W2]', '2[B1]', '5[W1]', '11[B2]', '23[W3]']
+    board.setup_position(position)
+
+    num = board.num_checkers_after_position(color, point)
+    assert num == expected
+
+
+@mark.parametrize(
     'position, min_length, expected',
     [
         (['1[W1]', '2[W1]', '3[W1]'], 2, 1),

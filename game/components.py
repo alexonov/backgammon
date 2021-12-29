@@ -3,9 +3,9 @@ classes to represent the board of the game
 
 board positions go from 1 to 24 to conform to standard backgammon notation
 """
-from typing import NamedTuple
-from random import randrange
 import re
+from random import randrange
+from typing import NamedTuple
 
 
 MIN_POSITION = 1
@@ -23,7 +23,9 @@ def norm_index(position):
 def convert_coordinates(position: int) -> int:
     assert MIN_POSITION <= position
     mid_point = MAX_POSITION - 12
-    lookup = list(range(mid_point + 1, MAX_POSITION + 1)) + list(range(MIN_POSITION, mid_point + 1))
+    lookup = list(range(mid_point + 1, MAX_POSITION + 1)) + list(
+        range(MIN_POSITION, mid_point + 1)
+    )
     lookup_ind = norm_index(position)
     return lookup[lookup_ind]
 
@@ -87,10 +89,7 @@ class Slot:
     def __init__(self, white_position, black_position):
         self.checkers: list[Checker] = []
         self.real_position = white_position
-        self.position = {
-            Colors.WHITE: white_position,
-            Colors.BLACK: black_position
-        }
+        self.position = {Colors.WHITE: white_position, Colors.BLACK: black_position}
 
     @classmethod
     def generate_from_position(cls, real_position: int):
@@ -125,7 +124,8 @@ class Slot:
             self.checkers.append(checker)
         else:
             raise MoveNotPossibleError(
-                f'Cannot place checker of color {checker.color} into the slot {self.position[checker.color]}')
+                f'Cannot place checker of color {checker.color} into the slot {self.position[checker.color]}'
+            )
 
     def __repr__(self):
         repr = f'Slot {self.real_position}: '
@@ -143,13 +143,23 @@ class Board:
     def __init__(self):
         self.slots = [Slot.generate_from_position(i) for i in self.BOARD_POINTS]
         self.slot_lookup_dict = {
-            Colors.WHITE: [i for i in sorted_inds(self.slots, key_func=lambda x: x.position[Colors.WHITE])],
-            Colors.BLACK: [i for i in sorted_inds(self.slots, key_func=lambda x: x.position[Colors.BLACK])]
+            Colors.WHITE: [
+                i
+                for i in sorted_inds(
+                    self.slots, key_func=lambda x: x.position[Colors.WHITE]
+                )
+            ],
+            Colors.BLACK: [
+                i
+                for i in sorted_inds(
+                    self.slots, key_func=lambda x: x.position[Colors.BLACK]
+                )
+            ],
         }
         self.moves = []
         self.off_tray = {
             Colors.WHITE: Slot(MAX_POSITION + 1, 0),
-            Colors.BLACK: Slot(0, MAX_POSITION + 1)
+            Colors.BLACK: Slot(0, MAX_POSITION + 1),
         }
 
     def get_slot(self, color: str, position: int):
@@ -158,7 +168,7 @@ class Board:
             ind = self.slot_lookup_dict[color][norm_position]
             return self.slots[ind]
         except (IndexError, ValueError):
-            if position == MAX_POSITION + 1: # tray
+            if position == MAX_POSITION + 1:  # tray
                 return self.off_tray[color]
 
     def clear(self):
@@ -202,19 +212,26 @@ class Board:
         slot_to = self.get_slot(single_move.color, single_move.position_to)
         try:
             # check if it's not "blank" move
-            assert single_move.position_from != single_move.position_to, 'Starting and end positions are the same'
+            assert (
+                single_move.position_from != single_move.position_to
+            ), 'Starting and end positions are the same'
 
             # check if there's a checker
-            assert not slot_from.is_empty, f'No checker to move in {single_move.position_from}'
+            assert (
+                not slot_from.is_empty
+            ), f'No checker to move in {single_move.position_from}'
 
             # check there's a checker of correct color
-            assert slot_from.color == single_move.color, f'No checker of color {single_move.color} as position {single_move.position_from}'
+            assert (
+                slot_from.color == single_move.color
+            ), f'No checker of color {single_move.color} as position {single_move.position_from}'
 
             # if not bearing off, check that there's no opponent's checker
             if slot_to is not None:
                 checker_to_move = slot_from.checkers[-1]
                 assert slot_to.can_place_checker(
-                    checker_to_move), f'Cannot place checker from {single_move.position_from} to {single_move.position_to}'
+                    checker_to_move
+                ), f'Cannot place checker from {single_move.position_from} to {single_move.position_to}'
         except AssertionError:
             return False
         else:
@@ -222,8 +239,12 @@ class Board:
 
     def do_single_move(self, single_move):
         if self.is_single_move_possible(single_move):
-            checker = self.get_slot(single_move.color, single_move.position_from).checkers.pop()
-            self.get_slot(single_move.color, single_move.position_to).place_checker(checker)
+            checker = self.get_slot(
+                single_move.color, single_move.position_from
+            ).checkers.pop()
+            self.get_slot(single_move.color, single_move.position_to).place_checker(
+                checker
+            )
             self.moves.append(single_move)
         else:
             raise MoveNotPossibleError(f'Cannot make move {single_move}')
@@ -238,6 +259,14 @@ class Board:
         for s in self.slots:
             if s.color == color:
                 num += s.num_checkers
+        return num
+
+    def num_checkers_after_position(self, color, position) -> int:
+        num = 0
+        for p in range(position + 1, MAX_POSITION + 1):
+            slot = self.get_slot(color, p)
+            if slot.color == color:
+                num += slot.num_checkers
         return num
 
     def has_any_checkers_home(self, color: str) -> bool:
@@ -283,7 +312,7 @@ class Board:
 
     def find_blocks_min_length(self, color, min_length):
         """
-            finds blocks of checkers of <color> with a least <at_lest_checkers> number of checkers
+        finds blocks of checkers of <color> with a least <at_lest_checkers> number of checkers
         """
         blocks = self.find_blocks(color)
         return [b for b in blocks if len(b) >= min_length]
@@ -317,5 +346,3 @@ class Board:
 
         # sorting using points
         return [x for _, x in sorted(zip(_points_with_checkers, position))]
-
-
