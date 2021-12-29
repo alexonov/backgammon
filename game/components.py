@@ -5,6 +5,7 @@ board positions go from 1 to 24 to conform to standard backgammon notation
 """
 from typing import NamedTuple
 from random import randrange
+import re
 
 
 MIN_POSITION = 1
@@ -32,8 +33,8 @@ def sorted_inds(l: list, key_func):
 
 
 class Colors:
-    WHITE = 'white'
-    BLACK = 'black'
+    WHITE = 'W'
+    BLACK = 'B'
 
     @classmethod
     def opponent(cls, color: str):
@@ -54,8 +55,12 @@ class Dice:
 
 
 class SingleMove(NamedTuple):
+    color: str
     position_from: int
     position_to: int
+
+    def __repr__(self):
+        return f'{self.color}: {self.position_from}->{self.position_to}'
 
 
 class Move(NamedTuple):
@@ -138,6 +143,11 @@ class Board:
         except IndexError:
             return None
 
+    def clear(self):
+        for s in self.slots:
+            s.checkers = []
+        self.moves = []
+
     def reset(self):
         """
         resets the board for a new game
@@ -148,21 +158,27 @@ class Board:
 
         self.moves = []
 
-    def _dummy_setup(self, num=1):
-        for s in self.slots:
-            if s.real_position % 2 == 0:
-                color = Colors.WHITE
-            else:
-                color = Colors.BLACK
-            s.checkers = [Checker(color) for _ in range(num)]
+    def setup_position(self, positions):
+        """
+        takes a list representing a position on the board.
+        each element is <slot number>[<W or B>:<number of checkers]
+        slots can be omitted if empty
+        """
+        mask = re.compile('(\d+)\[([WB]):(\d+)]')
+        for p in positions:
+            m = mask.match(p)
+            slot_num, color, checkers_num = m.groups()
+            norm_ind = norm_index(int(slot_num))
+            for _ in range(int(checkers_num)):
+                self.slots[norm_ind].place_checker(Checker(color))
 
-    def is_single_move_possible(self, color: str, single_move: SingleMove):
+    def is_single_move_possible(self, single_move: SingleMove):
         """
         checks if move is not obstructed by enemy's checkers
         """
 
-        slot_from = self.get_slot(color, single_move.position_from)
-        slot_to = self.get_slot(color, single_move.position_from)
+        slot_from = self.get_slot(single_move.color, single_move.position_from)
+        slot_to = self.get_slot(single_move.color, single_move.position_from)
         try:
             # check if there's a checker
             assert not slot_from.is_empty, f'No checker to move in {single_move.position_from}'
@@ -177,25 +193,18 @@ class Board:
         else:
             return True
 
-    def do_move(self, move: Move):
-        """
-        move checkers according to move variable
-        """
-        if self.is_single_move_possible(move.color, move.first_move):
-            self.do_single_move(move.color, move.first_move)
-            if self.is_single_move_possible(move.color, move.second_move):
-                self.do_single_move(move.color, move.second_move)
-                self.moves.append(move)
-            else:
-                self.undo_single_move(move.color, move.first_move)
+    def do_single_move(self, single_move):
+        if self.is_single_move_possible(single_move):
+            checker = self.get_slot(single_move.color, single_move.position_from).checkers.pop()
+            self.get_slot(single_move.color, single_move.position_to).place_checker(checker)
+            self.moves.append(single_move)
         else:
-            raise MoveNotPossibleError(f'Can not make move {move}')
+            raise MoveNotPossibleError(f'Cannot make move {single_move}')
 
-    def do_single_move(self, color, single_move):
-        checker = self.get_slot(color, single_move.position_from).checkers.pop()
-        self.get_slot(color, single_move.position_to).place_checker(checker)
-
-    def undo_single_move(self, color, single_move):
+    def undo_single_move(self, single_move):
         pos_from = single_move.position_to
         pos_to = single_move.position_from
-        self.do_single_move(color, SingleMove(pos_from, pos_to))
+        self.do_single_move(SingleMove(single_move.color, pos_from, pos_to))
+
+    def has_checkers_home(self, color: str):
+        home_points = list(range(MAX_POSITION - 6, MAX_POSITION + 1))
