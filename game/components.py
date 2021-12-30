@@ -64,6 +64,10 @@ class SingleMove(NamedTuple):
     def __repr__(self):
         return f'{self.color}:{self.position_from}->{self.position_to}'
 
+    @property
+    def length(self) -> int:
+        return self.position_to - self.position_from
+
 
 class Move(NamedTuple):
     color: str

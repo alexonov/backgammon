@@ -1,13 +1,13 @@
 """
 Main rules:
-    1. not blocking 6 in a row (unless there's a checker in front)
-    2. bearing off only if all home
-    3. overshooting bearing off only if no other non-bear-off move
+    1. bearing off only if all home
+    2. overshooting bearing off only if no other non-bear-off move
 
-    4. play both dice when possible
-    5. only once from the head per move
-    6. if only one die can be played - play second from the head (?)
-    7. if only one die can be played - play biggest
+    3. only once from the head unless first move
+    4. not blocking 6 in a row (unless there's a checker in front)
+    5. play both dice when possible
+    6. if only one die can be played - play biggest
+
 """
 import copy
 
@@ -15,22 +15,29 @@ from game.components import Board
 from game.components import Colors
 from game.components import convert_coordinates
 from game.components import MAX_POSITION
+from game.components import MIN_POSITION
 from game.components import SingleMove
 
 
-def rule_six_block(board: Board, move: SingleMove) -> bool:
+def opponent(color: str) -> str:
+    return Colors.WHITE if color == Colors.BLACK else Colors.BLACK
+
+
+def rule_six_block(board: Board, move: list[SingleMove]) -> bool:
     """
     not blocking 6 in a row (unless there's a checker in front)
     """
+
     fake_board = copy.deepcopy(board)
-    fake_board.do_single_move(move)
+    for m in move:
+        fake_board.do_single_move(m)
 
     # check if there are 6-blocks after the move
-    blocks = fake_board.find_blocks_min_length(move.color, 6)
+    blocks = fake_board.find_blocks_min_length(move[-1].color, 6)
     if len(blocks) == 0:
         return True
 
-    opponent_color = Colors.WHITE if move.color == Colors.BLACK else Colors.BLACK
+    opponent_color = opponent(move[-1].color)
 
     # check each block if it can be legally allowed
     for b in blocks:
@@ -58,9 +65,7 @@ def is_single_move_legal(board: Board, move: SingleMove):
     """
     try:
         assert board.is_single_move_possible(move), 'Move is not possible'
-        assert rule_six_block(
-            board, move
-        ), 'This move creates an illegal block with 6 or more checkers'
+
         if move.position_to > MAX_POSITION:
             assert board.has_all_checkers_home(
                 move.color
@@ -130,6 +135,48 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
                         result.append([m, r])
             return result
 
-    complete_moves = _find_combos(board, dice_roll)
+    complete_moves: list[list[SingleMove]] = _find_combos(board, dice_roll)
+
+    # 1. first move allows for taking twice from the head
+    def _num_from_head(moves: list[SingleMove]) -> int:
+        num = 0
+        for m in moves:
+            if m.position_from == MIN_POSITION:
+                num += 1
+        return num
+
+    # 1. only once from the head unless first move
+    first_slot = board.get_slot(color, 1)
+
+    if first_slot.num_checkers != 15:
+        # if not first move - take from the head only once
+        complete_moves = [m for m in complete_moves if _num_from_head(m) < 2]
+
+    # 2. not blocking 6 in a row (unless there's a checker in front)
+    complete_moves = [m for m in complete_moves if rule_six_block(board, m)]
+
+    # 3. play both dice when possible
+    # filter out moves with incomplete moves
+    max_times_move = max(len(m) for m in complete_moves)
+    complete_moves = [m for m in complete_moves if len(m) == max_times_move]
+
+    # 4. if only one die can be played - play biggest
+    if max_times_move == 1:
+        biggest_die = max(dice_roll)
+        complete_moves = [m for m in complete_moves if m[0].length == biggest_die]
 
     return complete_moves
+
+
+def win_condition(board: Board, color: str):
+    """
+    checks if any color has won
+    """
+    if board.num_checkers(color) == 0:
+        if board.has_all_checkers_home(opponent(color)):
+            return 1
+        else:
+            # mars
+            return 2
+    else:
+        return None

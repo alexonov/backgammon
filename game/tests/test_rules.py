@@ -8,13 +8,13 @@ from game.rules import rule_six_block
 
 
 @mark.parametrize(
-    'single_move, expected',
+    'move, expected',
     [
-        (SingleMove(Colors.WHITE, 1, 5), False),
-        (SingleMove(Colors.WHITE, 12, 18), True),
+        ([SingleMove(Colors.WHITE, 1, 2), SingleMove(Colors.WHITE, 2, 5)], False),
+        ([SingleMove(Colors.WHITE, 12, 15), SingleMove(Colors.WHITE, 15, 18)], True),
     ],
 )
-def test_rule_six_block(single_move, expected):
+def test_rule_six_block(move, expected):
     board = Board()
     position = [
         '1[W5]',
@@ -33,15 +33,16 @@ def test_rule_six_block(single_move, expected):
         '22[B1]',
     ]
     board.setup_position(position)
-    assert rule_six_block(board, single_move) == expected
+    assert rule_six_block(board, move) == expected
 
 
 @mark.parametrize(
     'color, dice, expected',
     [
-        (Colors.WHITE, (1, 2), 5),
-        (Colors.WHITE, (3, 3), 5),
-        (Colors.BLACK, (2, 6), 4),
+        (Colors.WHITE, (1, 2), 26),
+        (Colors.WHITE, (3, 3), 1162),
+        (Colors.BLACK, (2, 6), 2),
+        (Colors.BLACK, (2, 3), 1),
     ],
 )
 def test_find_complete_legal_moves(color, dice, expected):
@@ -50,6 +51,8 @@ def test_find_complete_legal_moves(color, dice, expected):
         '1[W2]',
         '7[B1]',
         '5[W1]',
+        '9[W1]',
+        '10[W1]',
         '11[B2]',
         '13[W2]',
         '14[W2]',

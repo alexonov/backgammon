@@ -1,11 +1,15 @@
-from game.components import Board, Move, Colors, SingleMove
-from game.gui import TerminalGUI
 from pathlib import Path
+
+from game.components import Board
+from game.components import Colors
+from game.components import SingleMove
+from game.gui import TerminalGUI
 
 
 def test_position():
     # file = 'bearingoff_position.pos'
     file = 'test_position.pos'
+    # file = 'rule_six_block_position.pos'
 
     with open(Path('data') / file, 'r') as f:
         data = f.readlines()
