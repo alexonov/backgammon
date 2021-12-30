@@ -168,7 +168,7 @@ class Board:
             ind = self.slot_lookup_dict[color][norm_position]
             return self.slots[ind]
         except (IndexError, ValueError):
-            if position == MAX_POSITION + 1:  # tray
+            if position > MAX_POSITION:  # tray
                 return self.off_tray[color]
 
     def clear(self):
@@ -269,6 +269,14 @@ class Board:
                 num += slot.num_checkers
         return num
 
+    def num_checkers_before_position(self, color, position) -> int:
+        num = 0
+        for p in range(MIN_POSITION, position):
+            slot = self.get_slot(color, p)
+            if slot.color == color:
+                num += slot.num_checkers
+        return num
+
     def has_any_checkers_home(self, color: str) -> bool:
         """
         checks if color has ANY checkers home
@@ -325,7 +333,7 @@ class Board:
         for p in self.BOARD_POINTS:
             slot = self.get_slot(color, p)
             position_from = slot.position[color]
-            position_to = min(position_from + die_roll, MAX_POSITION + 1)
+            position_to = position_from + die_roll
             possible_move = SingleMove(color, position_from, position_to)
             if self.is_single_move_possible(possible_move):
                 moves.append(possible_move)

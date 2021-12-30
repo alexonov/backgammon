@@ -1,12 +1,20 @@
 """
 Main rules:
     1. not blocking 6 in a row (unless there's a checker in front)
+    2. bearing off only if all home
+    3. overshooting bearing off only if no other non-bear-off move
+
+    4. play both dice when possible
+    5. only once from the head per move
+    6. if only one die can be played - play second from the head (?)
+    7. if only one die can be played - play biggest
 """
 import copy
 
 from game.components import Board
 from game.components import Colors
 from game.components import convert_coordinates
+from game.components import MAX_POSITION
 from game.components import SingleMove
 
 
@@ -44,10 +52,84 @@ def rule_six_block(board: Board, move: SingleMove) -> bool:
 def is_single_move_legal(board: Board, move: SingleMove):
     """
     checks if move can be legally made
+    0. move is possible
     1. not blocking 6 in a row (unless there's a checker in front)
     2. bearing off only allowed if all are ot home
-    3. if bearing off overshooting allowed only if there is no other not-bearing-off move
-    4. only one take from the head
-    5. rule of complete move (use both dice when possible)
     """
-    assert board.is_single_move_possible(move), 'Move is not possible'
+    try:
+        assert board.is_single_move_possible(move), 'Move is not possible'
+        assert rule_six_block(
+            board, move
+        ), 'This move creates an illegal block with 6 or more checkers'
+        if move.position_to > MAX_POSITION:
+            assert board.has_all_checkers_home(
+                move.color
+            ), 'Cannot bear off until all checkers are home'
+    except AssertionError:
+        return False
+    else:
+        return True
+
+
+def find_single_legal_moves(board: Board, color: str, die_roll: int):
+    """
+    finds all legal moves for a die roll
+
+    if bearing off, overshooting allowed only if there is no other not-bearing-off move
+    """
+    # 1. get all possible moves
+    moves = board.find_possible_moves(color, die_roll)
+
+    # 2. check basic rules
+    moves = [m for m in moves if is_single_move_legal(board, m)]
+
+    # check overshooting bear-off moves (position_to > 25)
+    # these moves are only allowed when no non-bear-off moves are left
+    # TODO: check this rule
+    tray_position = MAX_POSITION + 1
+
+    min_position_to = min(m.position_to for m in moves)
+
+    # if there are non-bear-off moves - remove all overshooting
+    if min_position_to < tray_position:
+        moves = [m for m in moves if not m.position_to > tray_position]
+
+    return moves
+
+
+def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, int]):
+    """
+    finds all complete legal moves for dice roll
+
+    4. play both dice when possible
+    5. only once from the head per move
+    6. if only one die can be played - play second from the head (?)
+    7. if only one die can be played - play biggest
+    """
+    # check if double
+    if dice_roll[0] == dice_roll[1]:
+        dice_roll *= 2
+
+    def _find_combos(the_board, dice):
+        first_roll = dice[0]
+        moves = find_single_legal_moves(the_board, color, first_roll)
+
+        # reached last die
+        if len(dice) == 1:
+            return moves
+        else:
+            result = []
+            for m in moves:
+                fake_board = copy.deepcopy(the_board)
+                fake_board.do_single_move(m)
+                rest_of_moves = _find_combos(fake_board, dice[1:])
+                for r in rest_of_moves:
+                    if type(r) == list:
+                        result.append([m, *r])
+                    else:
+                        result.append([m, r])
+            return result
+
+    complete_moves = _find_combos(board, dice_roll)
+
+    return complete_moves

@@ -3,6 +3,7 @@ from pytest import mark
 from game.components import Board
 from game.components import Colors
 from game.components import SingleMove
+from game.rules import find_complete_legal_moves
 from game.rules import rule_six_block
 
 
@@ -33,3 +34,27 @@ def test_rule_six_block(single_move, expected):
     ]
     board.setup_position(position)
     assert rule_six_block(board, single_move) == expected
+
+
+@mark.parametrize(
+    'color, dice, expected',
+    [
+        (Colors.WHITE, (1, 2), 5),
+        (Colors.WHITE, (3, 3), 5),
+        (Colors.BLACK, (2, 6), 4),
+    ],
+)
+def test_find_complete_legal_moves(color, dice, expected):
+    board = Board()
+    position = [
+        '1[W2]',
+        '7[B1]',
+        '5[W1]',
+        '11[B2]',
+        '13[W2]',
+        '14[W2]',
+        '23[W3]',
+    ]
+    board.setup_position(position)
+    moves = find_complete_legal_moves(board, color, dice)
+    assert len(moves) == expected

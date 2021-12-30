@@ -133,10 +133,12 @@ def test_export_position():
         (['1[W5]'], SingleMove(Colors.WHITE, 1, 5), ['1[W4]', '5[W1]']),
         (['4[W1]'], SingleMove(Colors.WHITE, 4, 7), ['7[W1]']),
         (['22[W5]'], SingleMove(Colors.WHITE, 22, 25), ['22[W4]']),
+        (['22[W5]'], SingleMove(Colors.WHITE, 22, 27), ['22[W4]']),
         (['1[B5]'], SingleMove(Colors.BLACK, 13, 17), ['1[B4]', '5[B1]']),
         (['4[B1]'], SingleMove(Colors.BLACK, 16, 19), ['7[B1]']),
         (['22[B5]'], SingleMove(Colors.BLACK, 10, 14), ['2[B1]', '22[B4]']),
         (['11[B5]'], SingleMove(Colors.BLACK, 23, 25), ['11[B4]']),
+        (['11[B5]'], SingleMove(Colors.BLACK, 23, 28), ['11[B4]']),
     ],
 )
 def test_do_move(position, move, expected_position):
