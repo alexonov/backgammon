@@ -53,7 +53,7 @@ class Dice:
         self.max_point = max_point
 
     def throw(self):
-        return randrange(self.max_point + 1), randrange(self.max_point + 1)
+        return randrange(1, self.max_point + 1), randrange(1, self.max_point + 1)
 
 
 class SingleMove(NamedTuple):
@@ -67,6 +67,17 @@ class SingleMove(NamedTuple):
     @property
     def length(self) -> int:
         return self.position_to - self.position_from
+
+    def __eq__(self, other):
+        other: SingleMove
+        try:
+            assert self.color == other.color
+            assert self.position_from == other.position_from
+            assert self.position_to == self.position_to
+        except AssertionError:
+            return False
+        else:
+            return True
 
 
 class Move(NamedTuple):

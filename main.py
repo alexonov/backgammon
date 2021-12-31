@@ -1,12 +1,12 @@
 from pathlib import Path
 
 from game.components import Board
-from game.components import Colors
-from game.components import SingleMove
 from game.gui import TerminalGUI
+from game.match import Match
+from game.match import Players
 
 
-def test_position():
+def position():
     # file = 'bearingoff_position.pos'
     file = 'test_position.pos'
     # file = 'rule_six_block_position.pos'
@@ -20,21 +20,10 @@ def test_position():
 
 
 def main():
-    board = Board()
-    board.reset()
-
-    gui = TerminalGUI()
-    gui.show_board(board)
-
-    move_1 = SingleMove(Colors.WHITE, 1, 6)
-    move_2 = SingleMove(Colors.WHITE, 6, 9)
-    board.do_single_move(move_1)
-    gui.show_board(board)
-    board.do_single_move(move_2)
-    gui.show_board(board)
-    print(board.moves)
+    match = Match(white=Players.AI, black=Players.AI)
+    match.play()
 
 
 if __name__ == '__main__':
-    # main()
-    test_position()
+    main()
+    # position()

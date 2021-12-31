@@ -93,7 +93,7 @@ def find_single_legal_moves(board: Board, color: str, die_roll: int):
     # TODO: check this rule
     tray_position = MAX_POSITION + 1
 
-    min_position_to = min(m.position_to for m in moves)
+    min_position_to = min([m.position_to for m in moves], default=0)
 
     # if there are non-bear-off moves - remove all overshooting
     if min_position_to < tray_position:
@@ -157,7 +157,7 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
 
     # 3. play both dice when possible
     # filter out moves with incomplete moves
-    max_times_move = max(len(m) for m in complete_moves)
+    max_times_move = max([len(m) for m in complete_moves], default=0)
     complete_moves = [m for m in complete_moves if len(m) == max_times_move]
 
     # 4. if only one die can be played - play biggest
