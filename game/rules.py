@@ -148,9 +148,37 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
     # 1. only once from the head unless first move
     first_slot = board.get_slot(color, 1)
 
+    def _remove_extra_from_head_moves(
+        move: list[SingleMove], allowed_num=1
+    ) -> list[SingleMove]:
+        num_from_head = 0
+        filtered_moves = []
+        for m in move:
+            if num_from_head < allowed_num or (m.position_from != 1):
+                filtered_moves.append(m)
+            if m.position_from == 1:
+                num_from_head += 1
+        return filtered_moves
+
+    # if not first move - take from the head only once
     if first_slot.num_checkers != 15:
-        # if not first move - take from the head only once
-        complete_moves = [m for m in complete_moves if _num_from_head(m) < 2]
+        # remove all single moves that take additionally from head
+        complete_moves = [_remove_extra_from_head_moves(m) for m in complete_moves]
+
+    # allow twice from the head if no other complete move available
+    else:
+        # remove all single moves that take additionally from head
+        once_from_head = [_remove_extra_from_head_moves(m) for m in complete_moves]
+
+        # check if still can play all dice
+        max_times_move = max([len(m) for m in once_from_head], default=0)
+        if max_times_move == len(dice_roll):
+            complete_moves = once_from_head
+        # if not - only keep moves with up to 2 moves from the head
+        else:
+            complete_moves = [
+                _remove_extra_from_head_moves(m, 2) for m in complete_moves
+            ]
 
     # 2. not blocking 6 in a row (unless there's a checker in front)
     complete_moves = [m for m in complete_moves if rule_six_block(board, m)]

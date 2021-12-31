@@ -2,7 +2,7 @@ from pathlib import Path
 
 from game.components import Board
 from game.gui import TerminalGUI
-from game.match import Match
+from game.match import play_match
 from game.match import Players
 
 
@@ -20,8 +20,7 @@ def position():
 
 
 def main():
-    match = Match(white=Players.AI, black=Players.AI)
-    match.play()
+    play_match(white=Players.AI, black=Players.AI)
 
 
 if __name__ == '__main__':

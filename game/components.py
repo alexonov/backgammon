@@ -64,6 +64,13 @@ class SingleMove(NamedTuple):
     def __repr__(self):
         return f'{self.color}:{self.position_from}->{self.position_to}'
 
+    @classmethod
+    def generate_from_str(cls, str_move):
+        regex = re.compile('^([WB]):(\d*)->(\d*)$')
+        m = regex.match(str_move)
+        color, position_from, position_to = m.groups()
+        return cls(color, int(position_from), int(position_to))
+
     @property
     def length(self) -> int:
         return self.position_to - self.position_from

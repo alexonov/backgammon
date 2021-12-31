@@ -31,82 +31,83 @@ class Players:
     HUMAN = 'Human'
 
 
-class Match:
-    def __init__(self, white, black, show_gui=True):
-        self.players = {Colors.WHITE: white, Colors.BLACK: black}
+class CompleteMove:
+    def __init__(self):
+        pass
 
-        self.show_gui = show_gui
 
-        self.gui = TerminalGUI()
-        self.board = Board()
-        self.dice = Dice()
-        self.bots = {Colors.WHITE: Bot(Colors.WHITE), Colors.BLACK: Bot(Colors.BLACK)}
+def play_match(white, black, show_gui=True):
+    players = {Colors.WHITE: white, Colors.BLACK: black}
+    gui = TerminalGUI()
+    board = Board()
+    dice = Dice()
+    bots = {Colors.WHITE: Bot(Colors.WHITE), Colors.BLACK: Bot(Colors.BLACK)}
 
-    def play(self):
-        def _show_message(message, pause=0.1):
-            print()
-            print(message)
-            time.sleep(pause)
+    moves = []
 
-        self.board.reset()
+    def _show_message(message, pause=0.1):
+        print()
+        print(message)
+        time.sleep(pause)
 
-        # randomly select who starts
-        starting_color = random.choice([Colors.WHITE, Colors.BLACK])
+    board.reset()
 
-        if self.show_gui:
-            _show_message(f'{starting_color} starts the game')
+    # randomly select who starts
+    starting_color = random.choice([Colors.WHITE, Colors.BLACK])
 
-        last_color = opponent(starting_color)
-        while win_condition(self.board, last_color) is None:
-            if self.show_gui:
-                self.gui.show_board(self.board)
+    if show_gui:
+        gui.show_board(board)
+        _show_message(f'{starting_color} starts the game')
 
-            color_to_move = opponent(last_color)
+    last_color = opponent(starting_color)
+    while win_condition(board, last_color) is None:
 
-            dice_roll = self.dice.throw()
+        if show_gui:
+            gui.show_board(board)
 
-            if self.show_gui:
-                _show_message(f'Player {color_to_move} turn.')
-                _show_message(f'Throwing dice: {dice_roll}')
+        color_to_move = opponent(last_color)
 
-            if self.players[color_to_move] == Players.HUMAN:
-                allowed_moves = find_complete_legal_moves(
-                    self.board, color_to_move, dice_roll
+        dice_roll = dice.throw()
+
+        if show_gui:
+            _show_message(f'Player {color_to_move} turn.')
+            _show_message(f'Throwing dice: {dice_roll}')
+
+        if players[color_to_move] == Players.HUMAN:
+            allowed_moves = find_complete_legal_moves(board, color_to_move, dice_roll)
+
+            # ask for a move
+            while True:
+                input_moves = input(
+                    'Make a move (format is from->to space separated): '
                 )
+                try:
+                    parsed_moves = parse_move(input_moves)
+                    player_moves = [
+                        SingleMove(color_to_move, m[0], m[1]) for m in parsed_moves
+                    ]
+                    assert player_moves in allowed_moves
+                except (AttributeError, AssertionError):
+                    print('Not an appropriate move.')
+                else:
+                    break
+        else:
+            player_moves = bots[color_to_move].find_a_move(board, dice_roll)
 
-                # ask for a move
-                while True:
-                    input_moves = input(
-                        'Make a move (format is from->to space separated): '
-                    )
-                    try:
-                        parsed_moves = parse_move(input_moves)
-                        player_moves = [
-                            SingleMove(color_to_move, m[0], m[1]) for m in parsed_moves
-                        ]
-                        assert player_moves in allowed_moves
-                    except (AttributeError, AssertionError):
-                        print('Not an appropriate move.')
-                    else:
-                        break
-            else:
-                player_moves = self.bots[color_to_move].find_a_move(
-                    self.board, dice_roll
-                )
+        # make move
+        for m in player_moves:
+            board.do_single_move(m)
 
-            # make move
-            for m in player_moves:
-                self.board.do_single_move(m)
+        # save move
+        moves.append(player_moves)
 
-            last_color = color_to_move
+        last_color = color_to_move
 
-        if self.show_gui:
-            self.gui.show_board(self.board)
-            _show_message(
-                f'Player {last_color} won with {win_condition(self.board, last_color)}!'
-            )
+        if show_gui:
+            _ = input('Press ENTER key to continue...')
 
-
-def match_wrapper():
-    match = Match(white=Players.HUMAN, black=Players.AI)
-    match.play()
+    if show_gui:
+        gui.show_board(board)
+        _show_message(
+            f'Player {last_color} won with {win_condition(board, last_color)}!'
+        )

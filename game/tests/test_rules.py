@@ -61,3 +61,46 @@ def test_find_complete_legal_moves(color, dice, expected):
     board.setup_position(position)
     moves = find_complete_legal_moves(board, color, dice)
     assert len(moves) == expected
+
+
+@mark.parametrize(
+    'position, color, dice_roll, expected_move, result',
+    [
+        (
+            ['1[W15]', '13[B15]'],
+            Colors.WHITE,
+            (2, 3),
+            ['W:1->3', 'W:3->6'],
+            True,
+        ),  # simple first move
+        (
+            ['1[W15]', '13[B15]'],
+            Colors.WHITE,
+            (6, 6),
+            ['W:1->7', 'W:1->7', 'W:1->7', 'W:1->7'],
+            False,
+        ),  # first move 6,6
+        (
+            ['1[W15]', '13[B15]'],
+            Colors.WHITE,
+            (3, 3),
+            ['W:1->4', 'W:1->4', 'W:1->4', 'W:4->7'],
+            False,
+        ),  # first move 3,3
+        (
+            ['1[W15]', '13[B15]'],
+            Colors.WHITE,
+            (3, 3),
+            ['W:1->4', 'W:1->4', 'W:4->7', 'W:4->7'],
+            True,
+        ),  # first move 3,3
+    ],
+)
+def test_find_complete_legal_moves_details(
+    position, color, dice_roll, expected_move, result
+):
+    board = Board()
+    board.setup_position(position)
+    moves = find_complete_legal_moves(board, color, dice_roll)
+    expected_move = [SingleMove.generate_from_str(m) for m in expected_move]
+    assert (expected_move in moves) == result
