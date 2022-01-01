@@ -1,7 +1,9 @@
 import os
+from typing import NamedTuple
 
 from game.components import Board
 from game.components import Colors
+from game.components import SingleMove
 
 
 def pad_number(n, length=2):
@@ -11,6 +13,20 @@ def pad_number(n, length=2):
     n_string = str(n)
     padding_length = max(length - len(n_string), 0)
     return '0' * padding_length + n_string
+
+
+class CompleteMove(NamedTuple):
+    color: str
+    dice_roll: tuple[int, int]
+    moves: list[SingleMove]
+
+    def __repr__(self):
+        prefix = f'{self.color}{self.dice_roll}: '
+        if len(self.moves) != 0:
+            points = ', '.join(f'{m.position_from}/{m.position_to}' for m in self.moves)
+        else:
+            points = '-'
+        return prefix + points
 
 
 class TerminalGUI:
@@ -36,7 +52,7 @@ class TerminalGUI:
     def __init__(self):
         pass
 
-    def show_board(self, board: Board):
+    def show_board(self, board: Board, moves=None):
         upper_numbers = '  ' + ' '.join(pad_number(n) for n in self.UPPER_LEFT_POINTS)
         upper_numbers += f' {self.VERTICAL_SYMBOL} '
         upper_numbers += ' '.join(pad_number(n) for n in self.UPPER_RIGHT_POINTS)
@@ -131,6 +147,34 @@ class TerminalGUI:
         lower_numbers = '  ' + ' '.join(pad_number(n) for n in self.LOWER_LEFT_POINTS)
         lower_numbers += f' {self.VERTICAL_SYMBOL} '
         lower_numbers += ' '.join(pad_number(n) for n in self.LOWER_RIGHT_POINTS)
+
+        # show moves if present
+        if moves:
+            # pair moves
+            formatted_moves = [str(m) for m in moves]
+            formatted_moves_paired = [
+                '; '.join(formatted_moves[i : i + 2])
+                for i in range(0, len(formatted_moves), 2)
+            ]
+            move_max_with = max(len(m) for m in formatted_moves_paired)
+
+            # split into columns of height = board height
+            move_lines = [''] * self.BOARD_HEIGHT
+            for i, m in enumerate(formatted_moves_paired):
+                ind = i % self.BOARD_HEIGHT
+                move_lines[ind] = (
+                    ' ' * 3
+                    + (f'{i}. ' + m).ljust(move_max_with + 5)
+                    + self.VERTICAL_SYMBOL
+                )
+
+            # add blank line for readability
+            if len(formatted_moves_paired) > self.BOARD_HEIGHT:
+                move_lines[len(formatted_moves_paired) % self.BOARD_HEIGHT] = (
+                    ' ' * 3 + ''.ljust(move_max_with + 5) + self.VERTICAL_SYMBOL
+                )
+
+            board_rows = [b + l for b, l in zip(board_rows, move_lines)]
 
         board_string = '\n'.join(
             [

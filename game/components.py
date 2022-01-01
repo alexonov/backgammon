@@ -4,6 +4,7 @@ classes to represent the board of the game
 board positions go from 1 to 24 to conform to standard backgammon notation
 """
 import re
+from copy import deepcopy
 from random import randrange
 from typing import NamedTuple
 
@@ -80,7 +81,7 @@ class SingleMove(NamedTuple):
         try:
             assert self.color == other.color
             assert self.position_from == other.position_from
-            assert self.position_to == self.position_to
+            assert self.position_to == other.position_to
         except AssertionError:
             return False
         else:
@@ -183,6 +184,43 @@ class Board:
             Colors.WHITE: Slot(MAX_POSITION + 1, 0),
             Colors.BLACK: Slot(0, MAX_POSITION + 1),
         }
+
+    def deepcopy_with_sharing(self, memo=None):
+        """
+        Deepcopy an object, except for a given list of attributes, which should
+        be shared between the original object and its copy.
+
+        self is some object
+        shared_attribute_names: A list of strings identifying the attributes that
+            should be shared between the original and its copy.
+        memo is the dictionary passed into __deepcopy__.  Ignore this argument if
+            not calling from within __deepcopy__.
+        """
+        shared_attribute_names = ['slot_lookup_dict']
+
+        assert isinstance(shared_attribute_names, (list, tuple))
+        shared_attributes = {k: getattr(self, k) for k in shared_attribute_names}
+
+        if hasattr(self, '__deepcopy__'):
+            # Do hack to prevent infinite recursion in call to deepcopy
+            deepcopy_method = self.__deepcopy__
+            self.__deepcopy__ = None
+
+        for attr in shared_attribute_names:
+            del self.__dict__[attr]
+
+        clone = deepcopy(self)
+
+        for attr, val in shared_attributes.iteritems():
+            setattr(self, attr, val)
+            setattr(clone, attr, val)
+
+        if hasattr(self, '__deepcopy__'):
+            # Undo hack
+            self.__deepcopy__ = deepcopy_method
+            del clone.__deepcopy__
+
+        return clone
 
     def get_slot(self, color: str, position: int):
         try:
@@ -376,3 +414,11 @@ class Board:
 
         # sorting using points
         return [x for _, x in sorted(zip(_points_with_checkers, position))]
+
+    def pip_count(self, color: str) -> int:
+        count = 0
+        for p in self.BOARD_POINTS:
+            slot = self.get_slot(color, p)
+            if slot.color == color:
+                count += (MAX_POSITION + 1 - p) * slot.num_checkers
+        return count

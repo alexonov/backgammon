@@ -16,6 +16,7 @@ from game.components import Colors
 from game.components import convert_coordinates
 from game.components import MAX_POSITION
 from game.components import MIN_POSITION
+from game.components import MoveNotPossibleError
 from game.components import SingleMove
 
 
@@ -29,8 +30,11 @@ def rule_six_block(board: Board, move: list[SingleMove]) -> bool:
     """
 
     fake_board = copy.deepcopy(board)
-    for m in move:
-        fake_board.do_single_move(m)
+    try:
+        for m in move:
+            fake_board.do_single_move(m)
+    except Exception as e:
+        raise e
 
     # check if there are 6-blocks after the move
     blocks = fake_board.find_blocks_min_length(move[-1].color, 6)
@@ -115,6 +119,8 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
     if dice_roll[0] == dice_roll[1]:
         dice_roll *= 2
 
+    dice_roll = sorted(dice_roll, reverse=True)
+
     def _find_combos(the_board, dice):
         first_roll = dice[0]
         moves = find_single_legal_moves(the_board, color, first_roll)
@@ -128,14 +134,21 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
                 fake_board = copy.deepcopy(the_board)
                 fake_board.do_single_move(m)
                 rest_of_moves = _find_combos(fake_board, dice[1:])
-                for r in rest_of_moves:
-                    if type(r) == list:
-                        result.append([m, *r])
-                    else:
-                        result.append([m, r])
+                if len(rest_of_moves) == 0:
+                    result.append([m])
+                else:
+                    for r in rest_of_moves:
+                        if type(r) == list:
+                            result.append([m, *r])
+                        else:
+                            result.append([m, r])
             return result
 
     complete_moves: list[list[SingleMove]] = _find_combos(board, dice_roll)
+
+    # if not double, try to start with another die
+    reverse_die_moves: list[list[SingleMove]] = _find_combos(board, dice_roll[::-1])
+    complete_moves += reverse_die_moves
 
     # 1. first move allows for taking twice from the head
     def _num_from_head(moves: list[SingleMove]) -> int:
@@ -179,6 +192,19 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
             complete_moves = [
                 _remove_extra_from_head_moves(m, 2) for m in complete_moves
             ]
+
+    def _is_valid_complete_move(moves: list[SingleMove]):
+        try:
+            fake_board = copy.deepcopy(board)
+            for m in moves:
+                fake_board.do_single_move(m)
+        except MoveNotPossibleError:
+            return False
+        else:
+            return True
+
+    # make sure that reduced moves are  still valid moves
+    complete_moves = [m for m in complete_moves if _is_valid_complete_move(m)]
 
     # 2. not blocking 6 in a row (unless there's a checker in front)
     complete_moves = [m for m in complete_moves if rule_six_block(board, m)]

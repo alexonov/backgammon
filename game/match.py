@@ -1,15 +1,17 @@
 """
 used to setup and play the game
 """
+import datetime
 import random
 import re
 import time
+from pathlib import Path
 
-from game.bot import Bot
 from game.components import Board
 from game.components import Colors
 from game.components import Dice
 from game.components import SingleMove
+from game.gui import CompleteMove
 from game.gui import TerminalGUI
 from game.rules import find_complete_legal_moves
 from game.rules import opponent
@@ -31,17 +33,25 @@ class Players:
     HUMAN = 'Human'
 
 
-class CompleteMove:
-    def __init__(self):
-        pass
-
-
-def play_match(white, black, show_gui=True):
-    players = {Colors.WHITE: white, Colors.BLACK: black}
+def play_match(white=None, black=None, show_gui=True):
     gui = TerminalGUI()
     board = Board()
     dice = Dice()
-    bots = {Colors.WHITE: Bot(Colors.WHITE), Colors.BLACK: Bot(Colors.BLACK)}
+    bots = {}
+    players = {}
+
+    # if None - then human
+    if white is not None:
+        bots[Colors.WHITE] = white
+        players[Colors.WHITE] = Players.AI
+    else:
+        players[Colors.WHITE] = Players.HUMAN
+
+    if black is not None:
+        bots[Colors.BLACK] = black
+        players[Colors.BLACK] = Players.AI
+    else:
+        players[Colors.BLACK] = Players.HUMAN
 
     moves = []
 
@@ -63,7 +73,7 @@ def play_match(white, black, show_gui=True):
     while win_condition(board, last_color) is None:
 
         if show_gui:
-            gui.show_board(board)
+            gui.show_board(board, moves)
 
         color_to_move = opponent(last_color)
 
@@ -99,15 +109,32 @@ def play_match(white, black, show_gui=True):
             board.do_single_move(m)
 
         # save move
-        moves.append(player_moves)
+        moves.append(CompleteMove(color_to_move, dice_roll, player_moves))
 
         last_color = color_to_move
 
-        if show_gui:
-            _ = input('Press ENTER key to continue...')
+        # if show_gui:
+        #     _ = input('Press ENTER key to continue...')
 
     if show_gui:
-        gui.show_board(board)
+        gui.show_board(board, moves)
         _show_message(
             f'Player {last_color} won with {win_condition(board, last_color)}!'
         )
+    return moves, {'winner': last_color, 'score': win_condition(board, last_color)}
+
+
+def unique_name():
+    uniq_filename = (
+        str(datetime.datetime.now().date())
+        + '_'
+        + str(datetime.datetime.now().time()).replace(':', '-').replace('.', '-')
+    )
+    return uniq_filename
+
+
+def save_moves(moves: list[CompleteMove], file_name=None):
+    HISTORY_FOLDER = 'data/history'
+    file_name = file_name or unique_name()
+    with open(Path(HISTORY_FOLDER) / f'{file_name}.txt', 'w') as f:
+        f.writelines([str(m) + '\n' for m in moves])
