@@ -1,3 +1,4 @@
+from numpy.testing import assert_almost_equal
 from pytest import mark
 
 from game.components import Board
@@ -152,3 +153,23 @@ def test_do_move(position, move, expected_position):
     board.undo_single_move(move)
     old_position = board.export_position()
     assert old_position == position
+
+
+@mark.parametrize(
+    'position, turn, ind, expected',
+    [
+        (['1[W15]', '13[B15]'], Colors.WHITE, 0, 1),
+        (['1[W15]', '13[B15]'], Colors.WHITE, 1, 1),
+        (['1[W15]', '13[B15]'], Colors.WHITE, 24 * 2 + 12 * 2, 1),
+        (['1[W15]', '13[B15]'], Colors.WHITE, 24 * 2 + 12 * 2 + 1, 1),
+        (['1[W15]', '13[B15]'], Colors.WHITE, 24 * 2 * 2 + 2, 1),
+        (['1[W15]', '13[B15]'], Colors.WHITE, 24 * 2 * 2 + 2 + 1, 0),
+        (['5[W4]'], Colors.WHITE, 8, 1),
+        (['5[W4]'], Colors.WHITE, 9, 0.26667),
+    ],
+)
+def test_encod(position, turn, ind, expected):
+    board = Board()
+    board.setup_position(position)
+    encoded = board.encode(turn)
+    assert_almost_equal(encoded[ind], expected, decimal=3)

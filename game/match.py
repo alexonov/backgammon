@@ -4,7 +4,6 @@ used to setup and play the game
 import datetime
 import random
 import re
-import time
 from pathlib import Path
 
 from game.components import Board
@@ -58,7 +57,7 @@ def play_match(white=None, black=None, show_gui=True):
     def _show_message(message, pause=0.1):
         print()
         print(message)
-        time.sleep(pause)
+        # time.sleep(pause)
 
     board.reset()
 

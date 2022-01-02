@@ -8,6 +8,8 @@ from copy import deepcopy
 from random import randrange
 from typing import NamedTuple
 
+import numpy as np
+
 
 MIN_POSITION = 1
 MAX_POSITION = 24
@@ -307,7 +309,9 @@ class Board:
             )
             self.moves.append(single_move)
         else:
-            raise MoveNotPossibleError(f'Cannot make move {single_move}')
+            raise MoveNotPossibleError(
+                f'Cannot make move {single_move}, board position: {self.export_position()}'
+            )
 
     def undo_single_move(self, single_move):
         pos_from = single_move.position_to
@@ -422,3 +426,48 @@ class Board:
             if slot.color == color:
                 count += (MAX_POSITION + 1 - p) * slot.num_checkers
         return count
+
+    def encode(self, color_turn):
+        """
+        encodes the board for learning
+        each slot is represented by 1 inputs for each color (total 4 per slot)
+         - if no checkers -> 0
+         - if 1 checker -> 1
+         - if > 1 checkers = n / 15
+        additionally two slots for number of white and black checkers in the tray
+        n / 15
+        also 2 bits to signify whose move it is
+        """
+        BITS_PER_COLOR_SLOT = 2
+        SHAPE = (BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 2,)
+        encoded = np.zeros(SHAPE)
+
+        for p in self.BOARD_POINTS:
+            ind = p - 1
+            slot = self.get_slot(Colors.WHITE, p)
+            if slot.color == Colors.WHITE:
+                encoded[ind * BITS_PER_COLOR_SLOT] = 1
+                if slot.num_checkers > 1:
+                    encoded[ind * BITS_PER_COLOR_SLOT + 1] = slot.num_checkers / 15
+            elif slot.color == Colors.BLACK:
+                encoded[24 * BITS_PER_COLOR_SLOT + ind * BITS_PER_COLOR_SLOT] = 1
+                if slot.num_checkers > 1:
+                    encoded[
+                        24 * BITS_PER_COLOR_SLOT + ind * BITS_PER_COLOR_SLOT + 1
+                    ] = (slot.num_checkers / 15)
+
+        # add checkers on the tray
+        encoded[BITS_PER_COLOR_SLOT * 24 * 2] = (
+            self.off_tray[Colors.WHITE].num_checkers / 15
+        )
+        encoded[BITS_PER_COLOR_SLOT * 24 * 2 + 1] = (
+            self.off_tray[Colors.BLACK].num_checkers / 15
+        )
+
+        # whose move it is
+        if color_turn == Colors.WHITE:
+            encoded[BITS_PER_COLOR_SLOT * 24 * 2 + 2] = 1
+        else:
+            encoded[BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 1] = 1
+
+        return encoded
