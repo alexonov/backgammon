@@ -62,13 +62,13 @@ def heuristics_eval_func(board: Board, moves: list[SingleMove]) -> float:
 
 class Bot:
     def __init__(self, color: str, eval_func: Callable = random_eval_func):
-        self.eval_func = eval_func
-        self.color = color
+        self._eval_func = eval_func
+        self._color = color
 
     def find_a_move(self, board, dice_roll) -> list[SingleMove]:
-        moves = find_complete_legal_moves(board, self.color, dice_roll)
+        moves = find_complete_legal_moves(board, self._color, dice_roll)
 
-        eval_func = partial(self.eval_func, board)
+        eval_func = partial(self._eval_func, board)
 
         # greater the evaluation the better
         moves_ranked = sorted(moves, key=eval_func)
@@ -79,3 +79,19 @@ class Bot:
             best_move = []
 
         return best_move
+
+
+class TDBot:
+    """
+    This bot uses TD model to play
+    """
+
+    def __init__(self, color: str, model):
+        self._model = model
+        self._color = color
+
+    def find_move(self, board, dice_roll) -> list[SingleMove]:
+        return self._model.find_move(self._color, board, dice_roll)
+
+    def update(self, board):
+        self._model.update(board)

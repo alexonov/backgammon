@@ -1,4 +1,5 @@
 import os
+import re
 from typing import NamedTuple
 
 from game.components import Board
@@ -27,6 +28,32 @@ class CompleteMove(NamedTuple):
         else:
             points = '-'
         return prefix + points
+
+    @classmethod
+    def generate_from_str(cls, move_string):
+        regex = re.compile(
+            '^([BW])\(([1-6], [1-6])\): '
+            '(?:(\d{1,2}\/\d{1,2})[, ]*)?'
+            '(?:(\d{1,2}\/\d{1,2})[, ]*)?'
+            '(?:(\d{1,2}\/\d{1,2})[, ]*)?'
+            '(?:(\d{1,2}\/\d{1,2})[, ]*)?'
+            '([-])?$'
+        )
+        m = regex.match(move_string)
+        groups = m.groups()
+        color, dice_roll = groups[:2]
+        single_moves = (sm for sm in groups[2:] if sm is not None)
+
+        dice_roll = tuple(int(r) for r in dice_roll.split(', '))
+
+        moves = []
+        if single_moves != '-':
+            for sm in single_moves:
+                position_from, position_to = sm.split('/')
+                sm_compiled = SingleMove(color, int(position_from), int(position_to))
+                moves.append(sm_compiled)
+
+        return cls(color, dice_roll, moves)
 
 
 class TerminalGUI:

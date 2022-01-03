@@ -10,7 +10,6 @@ from typing import NamedTuple
 
 import numpy as np
 
-
 MIN_POSITION = 1
 MAX_POSITION = 24
 
@@ -165,6 +164,9 @@ class Board:
     YARD_POINTS = list(range(MIN_POSITION, MIN_POSITION + 6))
     BOARD_POINTS = list(range(MIN_POSITION, MAX_POSITION + 1))
 
+    BITS_PER_COLOR_SLOT = 2
+    ENCODED_SHAPE = (BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 2,)
+
     def __init__(self):
         self.slots = [Slot.generate_from_position(i) for i in self.BOARD_POINTS]
         self.slot_lookup_dict = {
@@ -183,8 +185,8 @@ class Board:
         }
         self.moves = []
         self.off_tray = {
-            Colors.WHITE: Slot(MAX_POSITION + 1, 0),
-            Colors.BLACK: Slot(0, MAX_POSITION + 1),
+            Colors.WHITE: Slot(MAX_POSITION + 1, MIN_POSITION - 1),
+            Colors.BLACK: Slot(MIN_POSITION - 1, MAX_POSITION + 1),
         }
 
     def deepcopy_with_sharing(self, memo=None):
@@ -229,9 +231,13 @@ class Board:
             norm_position = norm_index(position)
             ind = self.slot_lookup_dict[color][norm_position]
             return self.slots[ind]
-        except (IndexError, ValueError):
-            if position > MAX_POSITION:  # tray
+        except (IndexError, ValueError) as e:
+            if position > MAX_POSITION:  # color tray
                 return self.off_tray[color]
+            elif position == MIN_POSITION - 1:  # opposite color tray
+                return self.off_tray[Colors.opponent(color)]
+            else:
+                raise e
 
     def clear(self):
         for s in self.slots:
@@ -260,9 +266,13 @@ class Board:
         for p in positions:
             m = mask.match(p)
             slot_num, color, checkers_num = m.groups()
-            norm_ind = norm_index(int(slot_num))
+            slot = self.get_slot(Colors.WHITE, int(slot_num))
             for _ in range(int(checkers_num)):
-                self.slots[norm_ind].place_checker(Checker(color))
+                slot.place_checker(Checker(color))
+
+            # norm_ind = norm_index(int(slot_num))
+            # for _ in range(int(checkers_num)):
+            #     self.slots[norm_ind].place_checker(Checker(color))
 
     def is_single_move_possible(self, single_move: SingleMove):
         """
@@ -404,10 +414,14 @@ class Board:
 
         return moves
 
+    @property
+    def slots_and_tray(self):
+        return [*self.slots, self.off_tray[Colors.WHITE], self.off_tray[Colors.BLACK]]
+
     def export_position(self):
         position = []
         _points_with_checkers = []
-        for s in self.slots:
+        for s in self.slots_and_tray:
             if s.is_empty:
                 continue
             point = s.position[Colors.WHITE]
@@ -438,9 +452,8 @@ class Board:
         n / 15
         also 2 bits to signify whose move it is
         """
-        BITS_PER_COLOR_SLOT = 2
-        SHAPE = (BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 2,)
-        encoded = np.zeros(SHAPE)
+        encoded = np.zeros(self.ENCODED_SHAPE)
+        BITS_PER_COLOR_SLOT = self.BITS_PER_COLOR_SLOT
 
         for p in self.BOARD_POINTS:
             ind = p - 1
@@ -471,3 +484,25 @@ class Board:
             encoded[BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 1] = 1
 
         return encoded
+
+    @property
+    def is_over(self):
+        return (
+            self.num_checkers(Colors.WHITE) == 0 or self.num_checkers(Colors.BLACK) == 0
+        )
+
+    @classmethod
+    def generate_from_hash(cls, hash: str):
+        position = [h.strip('\'') for h in hash[1:-1].split(',')]
+        board = cls()
+        board.setup_position(position)
+        return board
+
+    @classmethod
+    def generate_from_position(cls, position):
+        board = cls()
+        board.setup_position(position)
+        return board
+
+    def copy_board(self):
+        return self.generate_from_position(self.export_position())

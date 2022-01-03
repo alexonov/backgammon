@@ -122,7 +122,7 @@ def test_find_possible_moves(color, die_roll, expected):
 
 def test_export_position():
     board = Board()
-    position = ['1[W2]', '2[B1]', '5[W1]', '11[B2]', '23[W3]']
+    position = ['0[B2]', '1[W2]', '2[B1]', '5[W1]', '11[B2]', '23[W3]', '25[W1]']
     board.setup_position(position)
     exported = board.export_position()
     assert exported == position
@@ -133,13 +133,13 @@ def test_export_position():
     [
         (['1[W5]'], SingleMove(Colors.WHITE, 1, 5), ['1[W4]', '5[W1]']),
         (['4[W1]'], SingleMove(Colors.WHITE, 4, 7), ['7[W1]']),
-        (['22[W5]'], SingleMove(Colors.WHITE, 22, 25), ['22[W4]']),
-        (['22[W5]'], SingleMove(Colors.WHITE, 22, 27), ['22[W4]']),
+        (['22[W5]'], SingleMove(Colors.WHITE, 22, 25), ['22[W4]', '25[W1]']),
+        (['22[W5]'], SingleMove(Colors.WHITE, 22, 27), ['22[W4]', '25[W1]']),
         (['1[B5]'], SingleMove(Colors.BLACK, 13, 17), ['1[B4]', '5[B1]']),
         (['4[B1]'], SingleMove(Colors.BLACK, 16, 19), ['7[B1]']),
         (['22[B5]'], SingleMove(Colors.BLACK, 10, 14), ['2[B1]', '22[B4]']),
-        (['11[B5]'], SingleMove(Colors.BLACK, 23, 25), ['11[B4]']),
-        (['11[B5]'], SingleMove(Colors.BLACK, 23, 28), ['11[B4]']),
+        (['11[B5]'], SingleMove(Colors.BLACK, 23, 25), ['0[B1]', '11[B4]']),
+        (['11[B5]'], SingleMove(Colors.BLACK, 23, 28), ['0[B1]', '11[B4]']),
     ],
 )
 def test_do_move(position, move, expected_position):
@@ -168,7 +168,7 @@ def test_do_move(position, move, expected_position):
         (['5[W4]'], Colors.WHITE, 9, 0.26667),
     ],
 )
-def test_encod(position, turn, ind, expected):
+def test_encode(position, turn, ind, expected):
     board = Board()
     board.setup_position(position)
     encoded = board.encode(turn)

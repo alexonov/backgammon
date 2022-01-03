@@ -10,6 +10,7 @@ Main rules:
 
 """
 import copy
+import itertools
 
 from game.components import Board
 from game.components import Colors
@@ -22,25 +23,55 @@ from game.components import SingleMove
 MOVE_CACHE = {}
 
 
+def init_cache(board):
+    global MOVE_CACHE
+    MOVE_CACHE = {'board': board.export_position(), 'moves': {}}
+
+
+def get_board_from_cache(move):
+    # check that the move is valid
+    current_node = MOVE_CACHE
+    afterstate = current_node['board']
+
+    counter = 0
+    for i, m in enumerate(move):
+        counter = i
+        try:
+            current_node = current_node['moves'][str(m)]
+            afterstate = current_node['board']
+        except KeyError:
+            break
+
+    fake_board = Board.generate_from_position(afterstate)
+
+    # complete moves if left
+    for ind in range(counter, len(move)):
+        m = move[ind]
+        fake_board.do_single_move(m)
+
+        # save to cache
+        current_node['moves'][str(m)] = {
+            'board': fake_board.export_position(),
+            'moves': {},
+        }
+        current_node = current_node['moves'][str(m)]
+    return fake_board
+
+
 def opponent(color: str) -> str:
     return Colors.WHITE if color == Colors.BLACK else Colors.BLACK
 
 
-def passes_rule_six_block(board: Board, move: list[SingleMove]) -> bool:
+def passes_rule_six_block(move: list[SingleMove]) -> bool:
     """
     not blocking 6 in a row (unless there's a checker in front)
 
     also checks if move is valid
     """
-
-    fake_board = copy.deepcopy(board)
-
-    # check that the move is valid
     try:
-        for m in move:
-            fake_board.do_single_move(m)
+        fake_board = get_board_from_cache(move)
     except MoveNotPossibleError:
-        return True
+        return False
 
     # check if there are 6-blocks after the move
     blocks = fake_board.find_blocks_min_length(move[-1].color, 6)
@@ -142,13 +173,36 @@ def find_complete_possible_moves(the_board, dice, color):
 def remove_extra_from_head_moves(
     move: list[SingleMove], allowed_num=1
 ) -> list[SingleMove]:
+    """
+    removes single moves that take from head over allowed number
+    also need to remove all subsequent moves with that checker
+    for example, move 1/6, 1/6, 6/11, 6/11 with allowed_num=1 becomes
+    1/6, 6/11
+    """
     num_from_head = 0
     filtered_moves = []
+    subsequent_slots = []
     for m in move:
-        if num_from_head < allowed_num or (m.position_from != 1):
-            filtered_moves.append(m)
+
         if m.position_from == 1:
+            # we haven't reached the limit yet
+            if num_from_head < allowed_num:
+                filtered_moves.append(m)
+            # reached the limit - need to make sure that same checker is not allowed to move further too
+            else:
+                subsequent_slots.append(m.position_to)
+
             num_from_head += 1
+
+        # if it's a checker that was removed
+        elif m.position_from in subsequent_slots:
+            # move should not be considered, mark checker as taken care of
+            subsequent_slots.remove(m.position_from)
+
+        # if it's a normal checker and move is not from head - all is ok
+        else:
+            filtered_moves.append(m)
+
     return filtered_moves
 
 
@@ -173,7 +227,7 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
     7. if only one die can be played - play biggest
     """
     # clear move cache
-    # MOVE_CACHE = {}
+    init_cache(board)
 
     # check if double
     def _is_double():
@@ -222,7 +276,7 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
     # complete_moves = [m for m in complete_moves if is_valid_complete_move(m)]
 
     # 2. not blocking 6 in a row (unless there's a checker in front)
-    complete_moves = [m for m in complete_moves if passes_rule_six_block(board, m)]
+    complete_moves = [m for m in complete_moves if passes_rule_six_block(m)]
 
     # 3. play both dice when possible
     # filter out moves with incomplete moves
@@ -233,6 +287,11 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
     if max_times_move == 1:
         biggest_die = max(dice_roll)
         complete_moves = [m for m in complete_moves if m[0].length == biggest_die]
+
+    # remove duplicates
+    complete_moves = list(
+        complete_moves for complete_moves, _ in itertools.groupby(complete_moves)
+    )
 
     return complete_moves
 

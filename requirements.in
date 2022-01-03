@@ -3,3 +3,5 @@ flake8
 black
 pytest
 numpy
+tensorflow
+tqdm

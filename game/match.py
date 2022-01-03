@@ -32,7 +32,7 @@ class Players:
     HUMAN = 'Human'
 
 
-def play_match(white=None, black=None, show_gui=True):
+def play_match(white=None, black=None, show_gui=False):
     gui = TerminalGUI()
     board = Board()
     dice = Dice()
