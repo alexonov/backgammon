@@ -12,19 +12,24 @@ from game.components import Dice
 from game.components import SingleMove
 from game.gui import CompleteMove
 from game.gui import TerminalGUI
+from game.model.model import TDNardiModel
 from game.rules import find_complete_legal_moves
-from game.rules import opponent
 from game.rules import win_condition
 
 
-def parse_move(moves):
+def parse_moves(moves, splitter=','):
     parsed_moves = []
-    for move in moves.split(' '):
-        regex = re.compile('^(\d*)->(\d*)$')
-        m = regex.match(move)
-        position_from, position_to = m.groups()
+    for move in moves.split(','):
+        position_from, position_to = parse_move(move)
         parsed_moves.append((int(position_from), int(position_to)))
     return parsed_moves
+
+
+def parse_move(move):
+    regex = re.compile('^(\d*) (\d*)$')
+    m = regex.match(move)
+    position_from, position_to = m.groups()
+    return int(position_from), int(position_to)
 
 
 class Players:
@@ -38,6 +43,9 @@ def play_match(white=None, black=None, show_gui=False):
     dice = Dice()
     bots = {}
     players = {}
+
+    model = TDNardiModel()
+    model.restore()
 
     # if None - then human
     if white is not None:
@@ -59,6 +67,10 @@ def play_match(white=None, black=None, show_gui=False):
         print(message)
         # time.sleep(pause)
 
+    def _show_board(turn):
+        equity = model.equity(board, turn)
+        gui.show_board(board, moves, equity)
+
     board.reset()
 
     # randomly select who starts
@@ -68,55 +80,74 @@ def play_match(white=None, black=None, show_gui=False):
         gui.show_board(board)
         _show_message(f'{starting_color} starts the game')
 
-    last_color = opponent(starting_color)
+    last_color = Colors.opponent(starting_color)
     while win_condition(board, last_color) is None:
 
-        if show_gui:
-            gui.show_board(board, moves)
-
-        color_to_move = opponent(last_color)
-
+        color_to_move = Colors.opponent(last_color)
         dice_roll = dice.throw()
 
         if show_gui:
+            _show_board(color_to_move)
             _show_message(f'Player {color_to_move} turn.')
             _show_message(f'Throwing dice: {dice_roll}')
 
         if players[color_to_move] == Players.HUMAN:
-            allowed_moves = find_complete_legal_moves(board, color_to_move, dice_roll)
+            allowed_moves = find_complete_legal_moves(
+                board, color_to_move, dice_roll, filter_moves=False
+            )
 
             # ask for a move
-            while True:
-                input_moves = input(
-                    'Make a move (format is from->to space separated): '
+            num_moves_required = max(len(m) for m in allowed_moves)
+            moves_made = []
+            while len(moves_made) < num_moves_required:
+                num_moves_made = len(moves_made)
+
+                if num_moves_made > 0:
+                    print(f'moves made: {moves_made}')
+
+                input_move = input(
+                    'Make a move (format is from to (space separated), U to undo previous move): '
                 )
-                try:
-                    parsed_moves = parse_move(input_moves)
-                    player_moves = [
-                        SingleMove(color_to_move, m[0], m[1]) for m in parsed_moves
-                    ]
-                    assert player_moves in allowed_moves
-                except (AttributeError, AssertionError):
-                    print('Not an appropriate move.')
+                if input_move == 'U':
+                    if num_moves_made > 0:
+                        board.undo_single_move(moves_made.pop())
+                    else:
+                        pass
                 else:
-                    break
+                    try:
+                        parsed_move = parse_move(input_move)
+                        player_move = SingleMove(color_to_move, *parsed_move)
+                        assert player_move in [m[num_moves_made] for m in allowed_moves]
+
+                        board.do_single_move(player_move)
+
+                        moves_made.append(player_move)
+
+                    except (AttributeError, AssertionError):
+                        print('Not an appropriate move.')
+
+                _show_board(color_to_move)
+                _show_message(f'Player {color_to_move} turn.')
+                _show_message(f'Throwing dice: {dice_roll}')
+
+            player_moves = moves_made
         else:
             player_moves = bots[color_to_move].find_a_move(board, dice_roll)
-
-        # make move
-        for m in player_moves:
-            board.do_single_move(m)
+            # make move
+            if player_moves:
+                for m in player_moves:
+                    board.do_single_move(m)
 
         # save move
         moves.append(CompleteMove(color_to_move, dice_roll, player_moves))
 
         last_color = color_to_move
 
-        # if show_gui:
-        #     _ = input('Press ENTER key to continue...')
+        if show_gui:
+            _ = input('Press ENTER key to continue...')
 
     if show_gui:
-        gui.show_board(board, moves)
+        _show_board(Colors.opponent(last_color))
         _show_message(
             f'Player {last_color} won with {win_condition(board, last_color)}!'
         )

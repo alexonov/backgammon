@@ -23,10 +23,10 @@ class CompleteMove(NamedTuple):
 
     def __repr__(self):
         prefix = f'{self.color}{self.dice_roll}: '
-        if len(self.moves) != 0:
-            points = ', '.join(f'{m.position_from}/{m.position_to}' for m in self.moves)
-        else:
+        if self.moves is None or len(self.moves) == 0:
             points = '-'
+        else:
+            points = ', '.join(f'{m.position_from}/{m.position_to}' for m in self.moves)
         return prefix + points
 
     @classmethod
@@ -79,7 +79,15 @@ class TerminalGUI:
     def __init__(self):
         pass
 
-    def show_board(self, board: Board, moves=None):
+    def show_board(self, board: Board, moves=None, equity=None):
+        upper_black_numbers = '  ' + ' '.join(
+            pad_number(n) for n in self.LOWER_RIGHT_POINTS[::-1]
+        )
+        upper_black_numbers += f' {self.VERTICAL_SYMBOL} '
+        upper_black_numbers += ' '.join(
+            pad_number(n) for n in self.LOWER_LEFT_POINTS[::-1]
+        )
+
         upper_numbers = '  ' + ' '.join(pad_number(n) for n in self.UPPER_LEFT_POINTS)
         upper_numbers += f' {self.VERTICAL_SYMBOL} '
         upper_numbers += ' '.join(pad_number(n) for n in self.UPPER_RIGHT_POINTS)
@@ -175,6 +183,14 @@ class TerminalGUI:
         lower_numbers += f' {self.VERTICAL_SYMBOL} '
         lower_numbers += ' '.join(pad_number(n) for n in self.LOWER_RIGHT_POINTS)
 
+        lower_black_numbers = '  ' + ' '.join(
+            pad_number(n) for n in self.UPPER_RIGHT_POINTS[::-1]
+        )
+        lower_black_numbers += f' {self.VERTICAL_SYMBOL} '
+        lower_black_numbers += ' '.join(
+            pad_number(n) for n in self.UPPER_LEFT_POINTS[::-1]
+        )
+
         # show moves if present
         if moves:
             # pair moves
@@ -201,15 +217,30 @@ class TerminalGUI:
                     ' ' * 3 + ''.ljust(move_max_with + 5) + self.VERTICAL_SYMBOL
                 )
 
+            if equity is not None:
+                # if less than 4 moves - add empty lines
+                for i in range(len(formatted_moves_paired), 5):
+                    move_lines[i] = (
+                        ' ' * 3 + ''.ljust(move_max_with + 5) + self.VERTICAL_SYMBOL
+                    )
+
+                # display equity
+                move_lines[0] += '  white win:'.ljust(14, ' ') + f'{equity[0]:.2f}'
+                move_lines[1] += '  white mars:'.ljust(14, ' ') + f'{equity[1]:.2f}'
+                move_lines[2] += '  black win:'.ljust(14, ' ') + f'{equity[2]:.2f}'
+                move_lines[3] += '  black mars:'.ljust(14, ' ') + f'{equity[3]:.2f}'
+
             board_rows = [b + l for b, l in zip(board_rows, move_lines)]
 
         board_string = '\n'.join(
             [
+                upper_black_numbers,
                 upper_numbers,
                 upper_horizontal_border,
                 *board_rows,
                 lower_horizontal_border,
                 lower_numbers,
+                lower_black_numbers,
             ]
         )
 

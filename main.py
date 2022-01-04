@@ -108,7 +108,7 @@ if __name__ == '__main__':
     # position()
     # compare_bots()
 
-    train(500)
+    train(1000)
 
     # benchmark(double_benchmark)
     #

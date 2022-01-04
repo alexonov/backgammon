@@ -85,10 +85,10 @@ def test_rule_six_block_bugs(color, position, moves, expected):
 @mark.parametrize(
     'color, dice, expected',
     [
-        (Colors.WHITE, (1, 2), 53),
-        (Colors.WHITE, (3, 3), 1148),
-        (Colors.BLACK, (2, 6), 4),
-        (Colors.BLACK, (2, 3), 2),
+        (Colors.WHITE, (1, 2), 27),
+        (Colors.WHITE, (3, 3), 105),
+        (Colors.BLACK, (2, 6), 2),
+        (Colors.BLACK, (2, 3), 1),
     ],
 )
 def test_find_complete_legal_moves(color, dice, expected):
@@ -138,14 +138,14 @@ def test_find_complete_legal_moves(color, dice, expected):
             ['1[W15]', '13[B15]'],
             Colors.WHITE,
             (3, 3),
-            ['W:1->4', 'W:1->4', 'W:4->7', 'W:4->7'],
+            ['W:1->4', 'W:4->7', 'W:1->4', 'W:4->7'],
             True,
         ),  # first move 3,3
         (
             ['1[W13]', '2[W1]', '13[B13]', '16[W1]', '18[B1]', '20[B1]'],
             Colors.BLACK,
             (4, 4),
-            ['B:1->5', 'B:5->9', 'B:6->10', 'B:8->12'],
+            ['B:8->12', 'B:6->10', 'B:1->5', 'B:5->9'],
             True,
         ),  # bug
         (
@@ -180,7 +180,7 @@ def test_find_complete_legal_moves(color, dice, expected):
             ['1[W2]', '2[B1]', '4[B1]', '5[B1]', '6[B1]'],
             Colors.WHITE,
             (2, 6),
-            ['W:1->7', 'W:7->9'],
+            ['W:1->3', 'W:3->9'],
             True,
         ),  # play both dice when possible
         (

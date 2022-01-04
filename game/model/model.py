@@ -14,13 +14,12 @@ from game.components import Board
 from game.components import Colors
 from game.components import Dice
 from game.rules import find_complete_legal_moves
-from game.rules import opponent
 from game.rules import win_condition
 
 
 class TDNardiModel:
     _LAMBDA = 0.7
-    _ALPHA = 0.01
+    _ALPHA = 0.1
 
     _CHECKPOINTS_PATH = Path('data') / 'checkpoints'
     _LOGS_PATH = Path('data') / 'logs'
@@ -56,6 +55,11 @@ class TDNardiModel:
             self.checkpoint, self._CHECKPOINTS_PATH, max_to_keep=3
         )
 
+    def equity(self, board: Board, turn: str):
+        state = board.encode(turn)
+        output = self.model(state[np.newaxis])
+        return output.numpy()[0]
+
     def reset_episode(self):
         self._trace = []
         self.current_move.assign(0)
@@ -73,27 +77,30 @@ class TDNardiModel:
 
         moves = find_complete_legal_moves(board, color, dice_roll)
 
+        end_complete_moves = time.time()
+
         max_move = None
         max_prob = -np.inf
 
         def _get_prob(output):
             if color == Colors.WHITE:
-                return output[0][0] + output[0][2]
+                return output[0][0] + output[0][1]
             else:
-                return output[0][1] + output[0][3]
+                return output[0][2] + output[0][3]
 
         for move in moves:
+
             afterstate = board.copy_board()
-            for m in move:
-                afterstate.do_single_move(m)
+            for sm in move:
+                afterstate.do_single_move(sm)
 
             state = afterstate.encode(color)
             output = self.model(state[np.newaxis])
 
             # output has 4 probabilities
             # 0. prob of white winning
-            # 1. prob of black winning
-            # 2. prob of white winning with mars
+            # 1. prob of white winning with mars
+            # 2. prob of black winning
             # 3. prob of black winning with mars
             # select the one that gives highest sum
 
@@ -103,13 +110,12 @@ class TDNardiModel:
                 max_prob = prob
                 max_move = move
 
+        end_find_move = time.time()
+
         duration = time.time() - start
         logging.debug(
-            'playing move [player = %d] [move = %s] [winning prob = %f] [duration = %ds]',
-            color,
-            str(max_move),
-            max_prob,
-            duration,
+            f'playing move {max_move} [winning prob = {max_prob}] [time to generate move = {end_complete_moves - start}] '
+            f'[time to find best move = {end_find_move - end_complete_moves}] [total time = {duration}]'
         )
         return max_move
 
@@ -141,7 +147,7 @@ class TDNardiModel:
             if white_won:
                 r[white_won - 1] = white_won
             elif black_won:
-                r[black_won - 1] = black_won
+                r[black_won + 2 - 1] = black_won
             return tf.Variable(r[np.newaxis], dtype='float32')
 
         # calculate reward and td_error (according to https://www.bkgm.com/articles/tesauro/tdl.html)
@@ -251,11 +257,11 @@ class TDNardiModel:
             # randomly select who starts
             starting_color = random.choice([Colors.WHITE, Colors.BLACK])
 
-            last_color = opponent(starting_color)
+            last_color = Colors.opponent(starting_color)
 
             while win_condition(board, last_color) is None:
                 start_time = time.time()
-                color_to_move = opponent(last_color)
+                color_to_move = Colors.opponent(last_color)
                 dice_roll = dice.throw()
 
                 player_move = self.find_move(color_to_move, board, dice_roll)

@@ -48,6 +48,11 @@ class Colors:
         else:
             raise ValueError
 
+    @classmethod
+    @property
+    def colors(cls) -> tuple:
+        return cls.WHITE, cls.BLACK
+
 
 class Dice:
     def __init__(self, max_point=6):
@@ -406,10 +411,10 @@ class Board:
     def encode(self, color_turn):
         """
         encodes the board for learning
-        each slot is represented by 1 inputs for each color (total 4 per slot)
-         - if no checkers -> 0
-         - if 1 checker -> 1
-         - if > 1 checkers = n / 15
+        each slot is represented by 2 inputs for each color (total 4 per slot)
+         - if no checkers -> 0 0
+         - if 1 checker -> 1 0
+         - if > 1 checkers = 1 n/15
         additionally two slots for number of white and black checkers in the tray
         n / 15
         also 2 bits to signify whose move it is
@@ -468,3 +473,6 @@ class Board:
 
     def copy_board(self):
         return self.generate_from_position(self.export_position())
+
+    def __hash__(self):
+        return str(self.export_position())

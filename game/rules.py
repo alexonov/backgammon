@@ -20,11 +20,15 @@ from game.components import SingleMove
 
 
 MOVE_CACHE = {}
+MOVE_BOARD_DICTIONARY = {}
 
 
 def init_cache(board):
     global MOVE_CACHE
+    global MOVE_BOARD_DICTIONARY
+
     MOVE_CACHE = {'board': board.export_position(), 'moves': {}}
+    MOVE_BOARD_DICTIONARY = {}
 
 
 def get_board_from_cache(move):
@@ -54,11 +58,9 @@ def get_board_from_cache(move):
             'moves': {},
         }
         current_node = current_node['moves'][str(m)]
+
+    MOVE_BOARD_DICTIONARY[str(move)] = fake_board.export_position()
     return fake_board
-
-
-def opponent(color: str) -> str:
-    return Colors.WHITE if color == Colors.BLACK else Colors.BLACK
 
 
 def passes_rule_six_block(move: list[SingleMove]) -> bool:
@@ -77,7 +79,7 @@ def passes_rule_six_block(move: list[SingleMove]) -> bool:
     if len(blocks) == 0:
         return True
 
-    opponent_color = opponent(move[-1].color)
+    opponent_color = Colors.opponent(move[-1].color)
 
     # check each block if it can be legally allowed
     for b in blocks:
@@ -216,7 +218,9 @@ def is_valid_complete_move(board: Board, moves: list[SingleMove]):
         return True
 
 
-def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, int]):
+def find_complete_legal_moves(
+    board: Board, color: str, dice_roll: tuple[int, int], filter_moves=True
+):
     """
     finds all complete legal moves for dice roll
 
@@ -287,10 +291,21 @@ def find_complete_legal_moves(board: Board, color: str, dice_roll: tuple[int, in
         biggest_die = max(dice_roll)
         complete_moves = [m for m in complete_moves if m[0].length == biggest_die]
 
-    # remove duplicates
-    complete_moves = list(
-        complete_moves for complete_moves, _ in itertools.groupby(complete_moves)
-    )
+    # moves should be filtered to reduce computation complexity
+    # but for human player lookups we want all moves, even ifthey result in same
+    # board positions. but we still don't need duplicates
+    if not filter_moves:
+        # remove duplicates
+        complete_moves = list(
+            complete_moves for complete_moves, _ in itertools.groupby(complete_moves)
+        )
+    else:
+        # remove moves that have duplicated board positions
+        lookup = {}
+        for m in complete_moves:
+            lookup[str(MOVE_BOARD_DICTIONARY[str(m)])] = m
+
+        complete_moves = list(lookup.values())
 
     return complete_moves
 
@@ -300,7 +315,7 @@ def win_condition(board: Board, color: str):
     checks if any color has won
     """
     if board.num_checkers(color) == 0:
-        if board.has_all_checkers_home(opponent(color)):
+        if board.has_all_checkers_home(Colors.opponent(color)):
             return 1
         else:
             # mars

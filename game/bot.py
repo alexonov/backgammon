@@ -6,6 +6,7 @@ from game.components import Board
 from game.components import MAX_POSITION
 from game.components import MIN_POSITION
 from game.components import SingleMove
+from game.model.model import TDNardiModel
 from game.rules import find_complete_legal_moves
 
 
@@ -52,7 +53,7 @@ def heuristics_eval_func(board: Board, moves: list[SingleMove]) -> float:
     max_pip_count = ((MAX_POSITION + 1) - MIN_POSITION) * 15
     h_pip_count = fake_board.pip_count(color) / max_pip_count
 
-    # evaluate heuristic 4: prefer prefer bearing off moves
+    # evaluate heuristic 5: prefer bearing off moves
     num_bear_off = sum(int(sm.position_to > MAX_POSITION) for sm in moves)
     h_bear_off = num_bear_off
 
@@ -80,17 +81,26 @@ class Bot:
         return best_move
 
 
+class RandomBot(Bot):
+    def __init__(self, color: str):
+        super().__init__(color, random_eval_func)
+
+
+class HeuristicsBot(Bot):
+    def __init__(self, color: str):
+        super().__init__(color, heuristics_eval_func)
+
+
 class TDBot:
     """
     This bot uses TD model to play
     """
 
-    def __init__(self, color: str, model):
+    def __init__(self, color: str):
+        model = TDNardiModel()
+        model.restore()
         self._model = model
         self._color = color
 
-    def find_move(self, board, dice_roll) -> list[SingleMove]:
+    def find_a_move(self, board, dice_roll) -> list[SingleMove]:
         return self._model.find_move(self._color, board, dice_roll)
-
-    def update(self, board):
-        self._model.update(board)
