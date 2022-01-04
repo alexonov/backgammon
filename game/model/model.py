@@ -1,4 +1,3 @@
-import copy
 import logging
 import random
 import time
@@ -34,20 +33,23 @@ class TDNardiModel:
         self.model = Model(inputs=inputs, outputs=outputs)
 
         self._trace = []
-        self.global_step = tf.Variable(
-            0, trainable=False, name='global_step', dtype='int64'
+        self.total_moves_played = tf.Variable(
+            0, trainable=False, name='total_moves_played', dtype='int64'
         )
 
         self.writer = tf.summary.create_file_writer(str(self._LOGS_PATH))
 
-        self.loss = tf.Variable(np.inf, name='loss')
-        self.games_played = tf.Variable(0, name='games_played')
+        self.loss = tf.Variable(np.inf, trainable=False, name='loss')
+        self.games_played = tf.Variable(0, trainable=False, name='games_played')
+        self.moves_per_game = tf.Variable(0, trainable=False, name='moves_per_game')
+        self.current_move = tf.Variable(0, trainable=False, name='current_move')
 
         self.checkpoint = tf.train.Checkpoint(
-            global_step=self.global_step,
+            global_step=self.total_moves_played,
             model=self.model,
             loss=self.loss,
             games_played=self.games_played,
+            moves_per_game=self.moves_per_game,
         )
 
         self.manager = tf.train.CheckpointManager(
@@ -56,6 +58,7 @@ class TDNardiModel:
 
     def reset_episode(self):
         self._trace = []
+        self.current_move.assign(0)
         # board = Board()
         # board.reset()
         # self._state = tf.Variable(board.encode(color_move))
@@ -80,7 +83,7 @@ class TDNardiModel:
                 return output[0][1] + output[0][3]
 
         for move in moves:
-            afterstate = copy.deepcopy(board)
+            afterstate = board.copy_board()
             for m in move:
                 afterstate.do_single_move(m)
 
@@ -124,7 +127,7 @@ class TDNardiModel:
         grads = tape.gradient(value_t, trainable_vars)
 
         # make move
-        afterstate_board = copy.deepcopy(board)
+        afterstate_board = board.copy_board()
         for m in move:
             afterstate_board.do_single_move(m)
 
@@ -159,16 +162,18 @@ class TDNardiModel:
             for i in range(len(grads)):
                 var_name = self.model.trainable_variables[i].name
                 tf.summary.histogram(
-                    var_name, self.model.trainable_variables[i], step=self.global_step
+                    var_name,
+                    self.model.trainable_variables[i],
+                    step=self.total_moves_played,
                 )
                 tf.summary.histogram(
-                    var_name + '/gradients/grad', grads[i], step=self.global_step
+                    var_name + '/gradients/grad', grads[i], step=self.total_moves_played
                 )
 
                 # e-> = lambda * e-> + <grad of output w.r.t weights>
                 self._trace[i].assign((self._LAMBDA * self._trace[i]) + grads[i])
                 tf.summary.histogram(
-                    var_name + '/traces', self._trace[i], step=self.global_step
+                    var_name + '/traces', self._trace[i], step=self.total_moves_played
                 )
 
                 # grad with trace = alpha * td_error * e
@@ -180,7 +185,9 @@ class TDNardiModel:
                     for unit_error in td_error.numpy()[0]
                 )
                 tf.summary.histogram(
-                    var_name + '/gradients/trace', grad_trace, step=self.global_step
+                    var_name + '/gradients/trace',
+                    grad_trace,
+                    step=self.total_moves_played,
                 )
 
                 self.model.trainable_variables[i].assign_add(grad_trace)
@@ -188,28 +195,41 @@ class TDNardiModel:
             duration = time.time() - start
             logging.debug(f'updating model [player = {color}] [duration = {duration}s]')
 
-            tf.summary.scalar('global_step', self.global_step, step=self.global_step)
-            tf.summary.scalar('duration', duration, step=self.global_step)
+            tf.summary.scalar(
+                'total_moves_played',
+                self.total_moves_played,
+                step=self.total_moves_played,
+            )
+            tf.summary.scalar('duration', duration, step=self.total_moves_played)
 
             # values
             for i, v in enumerate(value_t.numpy()[0]):
-                tf.summary.scalar(f'value/value_{i}', v, step=self.global_step)
+                tf.summary.scalar(f'value/value_{i}', v, step=self.total_moves_played)
 
             for i, v in enumerate(value_t_next.numpy()[0]):
                 tf.summary.scalar(
-                    f'value_next/value_next_{i}', v, step=self.global_step
+                    f'value_next/value_next_{i}', v, step=self.total_moves_played
                 )
 
             td_error_mean = tf.reduce_mean(td_error, name='td_error_mean')
-            tf.summary.scalar('td_error_mean', td_error_mean, step=self.global_step)
+            tf.summary.scalar(
+                'td_error_mean', td_error_mean, step=self.total_moves_played
+            )
 
             # mean squared error of the difference between the next state and the current state
             self.loss.assign(tf.reduce_mean(tf.square(value_t_next - value_t)))
-            tf.summary.scalar('loss', self.loss, step=self.global_step)
+            tf.summary.scalar('loss', self.loss, step=self.total_moves_played)
+            tf.summary.scalar(
+                'current_move', self.current_move, step=self.total_moves_played
+            )
+            tf.summary.scalar(
+                'games_played', self.games_played, step=self.total_moves_played
+            )
+            tf.summary.scalar(
+                'moves_per_game', self.moves_per_game, step=self.total_moves_played
+            )
 
             self.writer.flush()
-
-        self.global_step.assign_add(1)
 
     def train(self, episodes=100, restore=True):
         if restore:
@@ -218,7 +238,10 @@ class TDNardiModel:
         dice = Dice()
         board = Board()
 
-        logging.info(f'Starting training cycle for {episodes} episodes')
+        print()
+        print(f'Starting training cycle for {episodes} episodes')
+
+        move_time = []
 
         pbar = tqdm(range(episodes))
         for _ in pbar:
@@ -230,7 +253,6 @@ class TDNardiModel:
 
             last_color = opponent(starting_color)
 
-            move_time = []
             while win_condition(board, last_color) is None:
                 start_time = time.time()
                 color_to_move = opponent(last_color)
@@ -245,25 +267,30 @@ class TDNardiModel:
                     for m in player_move:
                         board.do_single_move(m)
 
+                self.current_move.assign_add(1)
+                self.total_moves_played.assign_add(1)
+
                 last_color = color_to_move
 
                 move_time.append(time.time() - start_time)
                 avg_time_per_move = np.mean(move_time)
                 max_time_per_move = max(move_time)
-                num_moves = len(move_time)
 
                 pbar.set_postfix(
                     {
-                        'total_games_played': self.games_played.numpy(),
-                        'total_moves_played': self.global_step.numpy(),
-                        'current_game_moves': num_moves,
-                        'avg_time_per_move': avg_time_per_move,
-                        'max_time_per_move': max_time_per_move,
+                        'games': self.games_played.numpy(),
+                        'moves': self.total_moves_played.numpy(),
+                        'cur_moves': self.current_move.numpy(),
+                        'avg_t_move': avg_time_per_move,
+                        'max_t_move': max_time_per_move,
                         'loss': self.loss.numpy(),
                     }
                 )
 
             self.games_played.assign_add(1)
+            moves_p_game = self.total_moves_played.numpy() / self.games_played.numpy()
+            self.moves_per_game.assign(moves_p_game)
+
             self.backup()
 
     def backup(self):

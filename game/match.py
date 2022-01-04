@@ -133,7 +133,7 @@ def unique_name():
 
 
 def save_moves(moves: list[CompleteMove], file_name=None):
-    HISTORY_FOLDER = 'data/history'
+    HISTORY_FOLDER = 'data/recorded_games'
     file_name = file_name or unique_name()
     with open(Path(HISTORY_FOLDER) / f'{file_name}.txt', 'w') as f:
         f.writelines([str(m) + '\n' for m in moves])

@@ -9,7 +9,6 @@ Main rules:
     6. if only one die can be played - play biggest
 
 """
-import copy
 import itertools
 
 from game.components import Board
@@ -156,7 +155,7 @@ def find_complete_possible_moves(the_board, dice, color):
     else:
         result = []
         for m in moves:
-            fake_board = copy.deepcopy(the_board)
+            fake_board = the_board.copy_board()
             fake_board.do_single_move(m)
             rest_of_moves = find_complete_possible_moves(fake_board, dice[1:], color)
             if len(rest_of_moves) == 0:
@@ -208,7 +207,7 @@ def remove_extra_from_head_moves(
 
 def is_valid_complete_move(board: Board, moves: list[SingleMove]):
     try:
-        fake_board = copy.deepcopy(board)
+        fake_board = board.copy_board()
         for m in moves:
             fake_board.do_single_move(m)
     except MoveNotPossibleError:

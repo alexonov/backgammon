@@ -1,4 +1,3 @@
-import copy
 import multiprocessing as mp
 import time
 from collections import defaultdict
@@ -13,7 +12,7 @@ from game.components import Colors
 from game.gui import TerminalGUI
 from game.match import play_match
 from game.match import save_moves
-from game.model.td_nardi import TDNardiModel
+from game.model.model import TDNardiModel
 from game.rules import find_complete_legal_moves
 
 
@@ -32,7 +31,7 @@ def position():
     gui.show_board(board)
 
 
-def main():
+def play_game():
     moves, score = play_match(
         white=Bot(Colors.WHITE, eval_func=random_eval_func),
         black=Bot(Colors.BLACK, eval_func=heuristics_eval_func),
@@ -105,20 +104,21 @@ def benchmark(func):
 
 
 if __name__ == '__main__':
-    # main()
+    # play_game()
     # position()
     # compare_bots()
-    # train(1)
 
-    benchmark(double_benchmark)
+    train(500)
 
-    board = Board()
-
-    def copy_board():
-        _ = copy.deepcopy(board)
-
-    def export_board():
-        _ = board.copy_board()
-
-    benchmark(copy_board)
-    benchmark(export_board)
+    # benchmark(double_benchmark)
+    #
+    # board = Board()
+    #
+    # def copy_board():
+    #     _ = copy.deepcopy(board)
+    #
+    # def export_board():
+    #     _ = board.copy_board()
+    #
+    # benchmark(copy_board)
+    # benchmark(export_board)

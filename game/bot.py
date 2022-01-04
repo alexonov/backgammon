@@ -1,4 +1,3 @@
-import copy
 import random
 from functools import partial
 from typing import Callable
@@ -33,7 +32,7 @@ def heuristics_eval_func(board: Board, moves: list[SingleMove]) -> float:
 
     color = moves[0].color
 
-    fake_board = copy.deepcopy(board)
+    fake_board = board.copy_board()
     for sm in moves:
         fake_board.do_single_move(sm)
 

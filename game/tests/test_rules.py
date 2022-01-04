@@ -1,4 +1,3 @@
-import copy
 import itertools
 
 from pytest import mark
@@ -285,7 +284,7 @@ def test_game_scenario(moves, color, dice_roll):
 
     # make sure all moves are doable
     for m in next_moves:
-        fake_board = copy.deepcopy(board)
+        fake_board = board.copy_board()
         for sm in m:
             fake_board.do_single_move(sm)
 
