@@ -77,7 +77,6 @@ def play_match(white=None, black=None, show_gui=False):
     starting_color = random.choice([Colors.WHITE, Colors.BLACK])
 
     if show_gui:
-        gui.show_board(board)
         _show_message(f'{starting_color} starts the game')
 
     last_color = Colors.opponent(starting_color)

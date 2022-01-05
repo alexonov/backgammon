@@ -168,8 +168,8 @@ class Board:
     YARD_POINTS = list(range(MIN_POSITION, MIN_POSITION + 6))
     BOARD_POINTS = list(range(MIN_POSITION, MAX_POSITION + 1))
 
-    BITS_PER_COLOR_SLOT = 2
-    ENCODED_SHAPE = (BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 2,)
+    BITS_PER_COLOR_SLOT = 3
+    ENCODED_SHAPE = (BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 2 + 6,)
 
     def __init__(self):
         self.slots = [Slot.generate_from_position(i) for i in self.BOARD_POINTS]
@@ -411,10 +411,11 @@ class Board:
     def encode(self, color_turn):
         """
         encodes the board for learning
-        each slot is represented by 2 inputs for each color (total 4 per slot)
-         - if no checkers -> 0 0
-         - if 1 checker -> 1 0
-         - if > 1 checkers = 1 n/15
+        each slot is represented by 3 inputs for each color (total 6 per slot)
+         - if no checkers -> 0 0 0
+         - if 1 checker -> 1 0 0
+         - if 2 checkers -> 1 1 0
+         - if > 1 checkers = 1 1 n/15
         additionally two slots for number of white and black checkers in the tray
         n / 15
         also 2 bits to signify whose move it is
@@ -426,15 +427,16 @@ class Board:
             ind = p - 1
             slot = self.get_slot(Colors.WHITE, p)
             if slot.color == Colors.WHITE:
-                encoded[ind * BITS_PER_COLOR_SLOT] = 1
-                if slot.num_checkers > 1:
-                    encoded[ind * BITS_PER_COLOR_SLOT + 1] = slot.num_checkers / 15
+                enc_ind = ind * BITS_PER_COLOR_SLOT
             elif slot.color == Colors.BLACK:
-                encoded[24 * BITS_PER_COLOR_SLOT + ind * BITS_PER_COLOR_SLOT] = 1
+                enc_ind = ind * BITS_PER_COLOR_SLOT + BITS_PER_COLOR_SLOT * 24
+
+            if not slot.is_empty:
+                encoded[enc_ind] = 1
                 if slot.num_checkers > 1:
-                    encoded[
-                        24 * BITS_PER_COLOR_SLOT + ind * BITS_PER_COLOR_SLOT + 1
-                    ] = (slot.num_checkers / 15)
+                    encoded[enc_ind + 1] = 1
+                if slot.num_checkers > 2:
+                    encoded[enc_ind + 2] = (slot.num_checkers - 2) / 2
 
         # add checkers on the tray
         encoded[BITS_PER_COLOR_SLOT * 24 * 2] = (
@@ -449,6 +451,23 @@ class Board:
             encoded[BITS_PER_COLOR_SLOT * 24 * 2 + 2] = 1
         else:
             encoded[BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 1] = 1
+
+        length_so_far = BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 2
+
+        # additional features
+        max_pip_count = ((MAX_POSITION + 1) - MIN_POSITION) * 15
+
+        for i, color in enumerate(Colors.colors):
+            blocks_of_six = self.find_blocks_min_length(color, 6)
+            num_blocks_six = len(blocks_of_six)
+            encoded[length_so_far + i] = num_blocks_six
+
+            blocks_of_two = self.find_blocks_min_length(color, 2)
+            num_blocks_two = len(blocks_of_two)
+            encoded[length_so_far + 2 + i] = num_blocks_two
+
+            pip_count = self.pip_count(color) / max_pip_count
+            encoded[length_so_far + 2 + 2 + i] = pip_count
 
         return encoded
 

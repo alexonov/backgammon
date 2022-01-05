@@ -19,14 +19,14 @@ from game.rules import win_condition
 
 class TDNardiModel:
     _LAMBDA = 0.7
-    _ALPHA = 0.1
+    _ALPHA = 0.03
 
     _CHECKPOINTS_PATH = Path('data') / 'checkpoints'
     _LOGS_PATH = Path('data') / 'logs'
 
     def __init__(self):
         inputs = Input(shape=Board.ENCODED_SHAPE, name='input')
-        hidden_1 = Dense(50, activation='sigmoid', name='hidden_layer_1')(inputs)
+        hidden_1 = Dense(60, activation='sigmoid', name='hidden_layer_1')(inputs)
         hidden_2 = Dense(20, activation='sigmoid', name='hidden_layer_2')(hidden_1)
         outputs = Dense(4, activation='sigmoid', name='output')(hidden_2)
         self.model = Model(inputs=inputs, outputs=outputs)
@@ -39,7 +39,9 @@ class TDNardiModel:
         self.writer = tf.summary.create_file_writer(str(self._LOGS_PATH))
 
         self.loss = tf.Variable(np.inf, trainable=False, name='loss')
-        self.games_played = tf.Variable(0, trainable=False, name='games_played')
+        self.games_played = tf.Variable(
+            0, trainable=False, name='games_played', dtype='int64'
+        )
         self.moves_per_game = tf.Variable(0, trainable=False, name='moves_per_game')
         self.current_move = tf.Variable(0, trainable=False, name='current_move')
 
@@ -67,6 +69,50 @@ class TDNardiModel:
         # board.reset()
         # self._state = tf.Variable(board.encode(color_move))
         # self._value = tf.Variable(self.model(self._state[np.newaxis]))
+
+    def test_equity(self):
+        board = Board.generate_from_position(['1[W15]', '13[B15]'])
+        starting_equity = self.equity(board, Colors.WHITE)
+
+        board.setup_position(['24[W1]', '7[B15]'])
+        white_to_win_equity = self.equity(board, Colors.WHITE)
+
+        board.setup_position(['24[W1]', '13[B15]'])
+        white_to_mars_equity = self.equity(board, Colors.WHITE)
+
+        board.setup_position(['12[B1]', '19[W15]'])
+        black_to_win_equity = self.equity(board, Colors.BLACK)
+
+        board.setup_position(['12[B1]', '1[W15]'])
+        black_to_mars_equity = self.equity(board, Colors.BLACK)
+
+        with self.writer.as_default():
+            tf.summary.scalar(
+                'starting_equity',
+                starting_equity,
+                step=self.games_played,
+            )
+            for i in range(4):
+                tf.summary.scalar(
+                    f'white_to_win_equity_{i}',
+                    white_to_win_equity[i],
+                    step=self.games_played,
+                )
+                tf.summary.scalar(
+                    f'white_to_mars_equity_{i}',
+                    white_to_mars_equity[i],
+                    step=self.games_played,
+                )
+                tf.summary.scalar(
+                    f'black_to_win_equity_{i}',
+                    black_to_win_equity[i],
+                    step=self.games_played,
+                )
+                tf.summary.scalar(
+                    f'black_to_mars_equity_{i}',
+                    black_to_mars_equity[i],
+                    step=self.games_played,
+                )
 
     def find_move(self, color: str, board: Board, dice_roll: tuple[int, int]):
         """
@@ -241,6 +287,8 @@ class TDNardiModel:
         if restore:
             self.restore()
 
+        test_every_n_moves = 1
+
         dice = Dice()
         board = Board()
 
@@ -250,7 +298,11 @@ class TDNardiModel:
         move_time = []
 
         pbar = tqdm(range(episodes))
-        for _ in pbar:
+        for i in pbar:
+
+            if i % test_every_n_moves == 0:
+                self.test_equity()
+
             board.reset()
             self.reset_episode()
 

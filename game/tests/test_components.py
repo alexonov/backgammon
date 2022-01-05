@@ -160,12 +160,34 @@ def test_do_move(position, move, expected_position):
     [
         (['1[W15]', '13[B15]'], Colors.WHITE, 0, 1),
         (['1[W15]', '13[B15]'], Colors.WHITE, 1, 1),
-        (['1[W15]', '13[B15]'], Colors.WHITE, 24 * 2 + 12 * 2, 1),
-        (['1[W15]', '13[B15]'], Colors.WHITE, 24 * 2 + 12 * 2 + 1, 1),
-        (['1[W15]', '13[B15]'], Colors.WHITE, 24 * 2 * 2 + 2, 1),
-        (['1[W15]', '13[B15]'], Colors.WHITE, 24 * 2 * 2 + 2 + 1, 0),
-        (['5[W4]'], Colors.WHITE, 8, 1),
-        (['5[W4]'], Colors.WHITE, 9, 0.26667),
+        (['1[W15]', '13[B15]'], Colors.WHITE, 2, 6.5),
+        (
+            ['1[W15]', '13[B15]'],
+            Colors.WHITE,
+            24 * Board.BITS_PER_COLOR_SLOT + 12 * Board.BITS_PER_COLOR_SLOT,
+            1,
+        ),
+        (
+            ['1[W15]', '13[B15]'],
+            Colors.WHITE,
+            24 * Board.BITS_PER_COLOR_SLOT + 12 * Board.BITS_PER_COLOR_SLOT + 1,
+            1,
+        ),
+        (
+            ['1[W15]', '13[B15]'],
+            Colors.WHITE,
+            24 * Board.BITS_PER_COLOR_SLOT * 2 + 2,
+            1,
+        ),
+        (
+            ['1[W15]', '13[B15]'],
+            Colors.WHITE,
+            24 * Board.BITS_PER_COLOR_SLOT * 2 + 2 + 1,
+            0,
+        ),
+        (['5[W4]'], Colors.WHITE, 12, 1),
+        (['5[W4]'], Colors.WHITE, 13, 1),
+        (['5[W4]'], Colors.WHITE, 14, 1),
     ],
 )
 def test_encode(position, turn, ind, expected):

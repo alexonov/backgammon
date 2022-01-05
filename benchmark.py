@@ -7,12 +7,13 @@ from timeit import default_timer as timer
 import numpy as np
 from tqdm import tqdm
 
-from game.bot import HeuristicsBot
+from game.bot import HeuristicsBot  # noqa
 from game.bot import RandomBot
 from game.bot import TDBot
 from game.components import Board
 from game.components import Colors
 from game.components import Dice
+from game.model.model import TDNardiModel
 from game.rules import win_condition
 
 
@@ -144,9 +145,9 @@ def test_bots(num_games=10):
     dice = Dice()
     board = Board()
     bots = {
-        # Colors.WHITE: RandomBot(Colors.WHITE),
-        Colors.WHITE: TDBot(Colors.BLACK),
-        Colors.BLACK: HeuristicsBot(Colors.BLACK),
+        Colors.WHITE: RandomBot(Colors.WHITE),
+        Colors.BLACK: TDBot(Colors.BLACK),
+        # Colors.WHITE: HeuristicsBot(Colors.BLACK),
     }
 
     scores = {Colors.WHITE: 0, Colors.BLACK: 0}
@@ -191,7 +192,19 @@ def test_bots(num_games=10):
     )
 
 
+def debug():
+    board = Board()
+    board.reset()
+
+    model = TDNardiModel()
+    model.restore()
+
+    equity = model.equity(board, Colors.BLACK)
+    print(equity)
+
+
 if __name__ == '__main__':
     # run_benchmark()
     # debug_move()
-    test_bots(50)
+    # test_bots(5)
+    debug()
