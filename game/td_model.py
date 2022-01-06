@@ -10,28 +10,34 @@ from keras.layers import Input
 from keras.models import Model
 from tqdm import tqdm
 
+from game.bot import Bot
+from game.bot import HeuristicsBot
+from game.bot import RandomBot
 from game.components import Board
 from game.components import Colors
 from game.components import Dice
+from game.components import SingleMove
 from game.rules import find_complete_legal_moves
 from game.rules import win_condition
 
 
 class TDNardiModel:
-    _LAMBDA = 0.7
-    _ALPHA = 0.03
+    _LAMBDA = 0
+    _ALPHA = 0.05
 
     _CHECKPOINTS_PATH = Path('data') / 'checkpoints'
     _LOGS_PATH = Path('data') / 'logs'
 
     def __init__(self):
         inputs = Input(shape=Board.ENCODED_SHAPE, name='input')
-        hidden_1 = Dense(60, activation='sigmoid', name='hidden_layer_1')(inputs)
-        hidden_2 = Dense(20, activation='sigmoid', name='hidden_layer_2')(hidden_1)
-        outputs = Dense(4, activation='sigmoid', name='output')(hidden_2)
-        self.model = Model(inputs=inputs, outputs=outputs)
+        hidden = Dense(80, activation='sigmoid', name='hidden_layer_1')(inputs)
+        # outputs = Dense(4, activation='sigmoid', name='output')(hidden)
+        # self.model = Model(inputs=inputs, outputs=outputs)
 
-        self._trace = []
+        outputs_single = Dense(1, activation='sigmoid', name='output')(hidden)
+        self.model = Model(inputs=inputs, outputs=outputs_single)
+
+        self.trace = []
         self.total_moves_played = tf.Variable(
             0, trainable=False, name='total_moves_played', dtype='int64'
         )
@@ -44,6 +50,9 @@ class TDNardiModel:
         )
         self.moves_per_game = tf.Variable(0, trainable=False, name='moves_per_game')
         self.current_move = tf.Variable(0, trainable=False, name='current_move')
+
+        self.total_white_wins = tf.Variable(0, trainable=False, name='total_white_wins')
+        self.total_black_wins = tf.Variable(0, trainable=False, name='total_black_wins')
 
         self.checkpoint = tf.train.Checkpoint(
             global_step=self.total_moves_played,
@@ -63,7 +72,7 @@ class TDNardiModel:
         return output.numpy()[0]
 
     def reset_episode(self):
-        self._trace = []
+        self.trace = []
         self.current_move.assign(0)
         # board = Board()
         # board.reset()
@@ -87,32 +96,90 @@ class TDNardiModel:
         black_to_mars_equity = self.equity(board, Colors.BLACK)
 
         with self.writer.as_default():
-            tf.summary.scalar(
-                'starting_equity',
-                starting_equity,
-                step=self.games_played,
-            )
-            for i in range(4):
+            for i in range(len(starting_equity)):
                 tf.summary.scalar(
-                    f'white_to_win_equity_{i}',
+                    f'tests/starting_equity/starting_equity_{i}',
+                    starting_equity[i],
+                    step=self.games_played,
+                )
+                tf.summary.scalar(
+                    f'tests/white_to_win_equity/white_to_win_equity_{i}',
                     white_to_win_equity[i],
                     step=self.games_played,
                 )
                 tf.summary.scalar(
-                    f'white_to_mars_equity_{i}',
+                    f'tests/white_to_mars_equity/white_to_mars_equity_{i}',
                     white_to_mars_equity[i],
                     step=self.games_played,
                 )
                 tf.summary.scalar(
-                    f'black_to_win_equity_{i}',
+                    f'tests/black_to_win_equity/black_to_win_equity_{i}',
                     black_to_win_equity[i],
                     step=self.games_played,
                 )
                 tf.summary.scalar(
-                    f'black_to_mars_equity_{i}',
+                    f'tests/black_to_mars_equity/black_to_mars_equity_{i}',
                     black_to_mars_equity[i],
                     step=self.games_played,
                 )
+            self.writer.flush()
+
+    def test_against_bot(self, bot: Bot, num_games=50):
+        scores = {Colors.WHITE: 0, Colors.BLACK: 0}
+        games_won = {Colors.WHITE: 0, Colors.BLACK: 0}
+
+        def _run_game(dice, starting_color):
+            last_color = Colors.opponent(starting_color)
+            board.reset()
+
+            while win_condition(board, last_color) is None:
+                color_to_move = Colors.opponent(last_color)
+                dice_roll = dice.throw()
+
+                if color_to_move == bot.color:
+                    player_move = bot.find_a_move(board, dice_roll)
+                else:
+                    player_move = self.find_move(color_to_move, board, dice_roll)
+
+                # make move
+                if player_move:
+                    for m in player_move:
+                        board.do_single_move(m)
+
+                last_color = color_to_move
+
+            scores[last_color] += win_condition(board, last_color)
+            games_won[last_color] += min(1, win_condition(board, last_color))
+
+        board = Board()
+
+        for i in range(num_games):
+            seed = random.randint(1, 10000)
+            _run_game(Dice(seed=seed), Colors.WHITE)
+            _run_game(Dice(seed=seed), Colors.BLACK)
+
+        return (
+            games_won[Colors.opponent(bot.color)] / num_games,
+            scores[Colors.opponent(bot.color)] / scores[bot.color],
+        )
+
+    def test_against_random(self, num_games=10):
+        bot = RandomBot(Colors.WHITE)
+        win_ratio, score_ratio = self.test_against_bot(bot, num_games)
+        with self.writer.as_default():
+            tf.summary.scalar(
+                'tests/win_ratio_random', win_ratio, step=self.games_played
+            )
+            self.writer.flush()
+
+    def test_against_heuristics(self, num_games=10):
+        bot = HeuristicsBot(Colors.WHITE)
+        win_ratio, score_ratio = self.test_against_bot(bot, num_games)
+        with self.writer.as_default():
+            tf.summary.scalar(
+                'tests/win_ratio_heuristics', win_ratio, step=self.games_played
+            )
+            self.writer.flush()
 
     def find_move(self, color: str, board: Board, dice_roll: tuple[int, int]):
         """
@@ -128,11 +195,22 @@ class TDNardiModel:
         max_move = None
         max_prob = -np.inf
 
-        def _get_prob(output):
+        # def _get_prob(output):
+        #     if color == Colors.WHITE:
+        #         return output[0][0] + output[0][1]
+        #     else:
+        #         return output[0][2] + output[0][3]
+        def _get_prob(out):
+            # prob_white = out[0][0] + 2 * out[0][1]
+            # prob_black = out[0][2] + 2 * out[0][3]
+            # if color == Colors.WHITE:
+            #     return prob_white - prob_black
+            # else:
+            #     return prob_black - prob_white
             if color == Colors.WHITE:
-                return output[0][0] + output[0][1]
+                return out[0]
             else:
-                return output[0][2] + output[0][3]
+                return 1 - out[0]
 
         for move in moves:
 
@@ -140,7 +218,7 @@ class TDNardiModel:
             for sm in move:
                 afterstate.do_single_move(sm)
 
-            state = afterstate.encode(color)
+            state = afterstate.encode(Colors.opponent(color))
             output = self.model(state[np.newaxis])
 
             # output has 4 probabilities
@@ -183,18 +261,22 @@ class TDNardiModel:
         for m in move:
             afterstate_board.do_single_move(m)
 
-        state_t_next = afterstate_board.encode(color)
+        state_t_next = afterstate_board.encode(Colors.opponent(color))
         value_t_next = self.model(state_t_next[np.newaxis])
 
         def _reward(after_board):
-            white_won = win_condition(after_board, Colors.WHITE)
-            black_won = win_condition(after_board, Colors.BLACK)
-            r = np.zeros((4,))
-            if white_won:
-                r[white_won - 1] = white_won
-            elif black_won:
-                r[black_won + 2 - 1] = black_won
-            return tf.Variable(r[np.newaxis], dtype='float32')
+            points = {c: win_condition(after_board, c) for c in Colors.colors}
+            # white_won = win_condition(after_board, Colors.WHITE)
+            # black_won = win_condition(after_board, Colors.BLACK)
+            # r = np.zeros((4,))
+            # if white_won:
+            #     r[white_won - 1] = white_won
+            # elif black_won:
+            #     r[black_won + 2 - 1] = black_won
+            # return tf.Variable(r[np.newaxis], dtype='float32')
+
+            # ignoring mars for now
+            return 1 if points[Colors.WHITE] else 0
 
         # calculate reward and td_error (according to https://www.bkgm.com/articles/tesauro/tdl.html)
         if afterstate_board.is_over:
@@ -203,41 +285,41 @@ class TDNardiModel:
         else:
             td_error = value_t_next - value_t
 
+        # grad with trace = alpha * td_error * e
+        # the total weight change is given by the sum of the
+        # weight changes due to each individual output unit
+        # according to https://www.csd.uwo.ca/~xling/cs346a/extra/tdgammon.pdf
+        td_error = tf.reduce_sum(td_error)
+
         # initial value for e-> is 0 (according to http://www.incompleteideas.net/book/ebook/node108.html#TD-Gammon)
-        if len(self._trace) == 0:
+        if len(self.trace) == 0:
             for grad in grads:
-                self._trace.append(
+                self.trace.append(
                     tf.Variable(tf.zeros(grad.get_shape()), trainable=False)
                 )
 
         with self.writer.as_default():
             for i in range(len(grads)):
                 var_name = self.model.trainable_variables[i].name
+
+                # e-> = lambda * e-> + <grad of output w.r.t weights>
+                self.trace[i].assign((self._LAMBDA * self.trace[i]) + grads[i])
+
+                grad_trace = self._ALPHA * td_error * self.trace[i]
+
+                tf.summary.histogram(
+                    var_name + '/traces', self.trace[i], step=self.total_moves_played
+                )
                 tf.summary.histogram(
                     var_name,
                     self.model.trainable_variables[i],
                     step=self.total_moves_played,
                 )
                 tf.summary.histogram(
-                    var_name + '/gradients/grad', grads[i], step=self.total_moves_played
-                )
-
-                # e-> = lambda * e-> + <grad of output w.r.t weights>
-                self._trace[i].assign((self._LAMBDA * self._trace[i]) + grads[i])
-                tf.summary.histogram(
-                    var_name + '/traces', self._trace[i], step=self.total_moves_played
-                )
-
-                # grad with trace = alpha * td_error * e
-                # the total weight change is given by the sum of the
-                # weight changes due to each individual output unit
-                # according to https://www.csd.uwo.ca/~xling/cs346a/extra/tdgammon.pdf
-                grad_trace = sum(
-                    self._ALPHA * unit_error * self._trace[i]
-                    for unit_error in td_error.numpy()[0]
+                    var_name + '/gradients', grads[i], step=self.total_moves_played
                 )
                 tf.summary.histogram(
-                    var_name + '/gradients/trace',
+                    var_name + '/grad_traces',
                     grad_trace,
                     step=self.total_moves_played,
                 )
@@ -248,37 +330,53 @@ class TDNardiModel:
             logging.debug(f'updating model [player = {color}] [duration = {duration}s]')
 
             tf.summary.scalar(
-                'total_moves_played',
+                'game_stats/total_moves_played',
                 self.total_moves_played,
                 step=self.total_moves_played,
             )
-            tf.summary.scalar('duration', duration, step=self.total_moves_played)
+            tf.summary.scalar(
+                'update_step_duration', duration, step=self.total_moves_played
+            )
 
             # values
             for i, v in enumerate(value_t.numpy()[0]):
-                tf.summary.scalar(f'value/value_{i}', v, step=self.total_moves_played)
+                tf.summary.scalar(
+                    f'train/value/value_{i}', v, step=self.total_moves_played
+                )
 
             for i, v in enumerate(value_t_next.numpy()[0]):
                 tf.summary.scalar(
-                    f'value_next/value_next_{i}', v, step=self.total_moves_played
+                    f'train/value_next/value_next_{i}', v, step=self.total_moves_played
                 )
 
             td_error_mean = tf.reduce_mean(td_error, name='td_error_mean')
             tf.summary.scalar(
-                'td_error_mean', td_error_mean, step=self.total_moves_played
+                'train/td_error_mean', td_error_mean, step=self.total_moves_played
             )
 
             # mean squared error of the difference between the next state and the current state
             self.loss.assign(tf.reduce_mean(tf.square(value_t_next - value_t)))
-            tf.summary.scalar('loss', self.loss, step=self.total_moves_played)
+            tf.summary.scalar('train/loss', self.loss, step=self.total_moves_played)
             tf.summary.scalar(
-                'current_move', self.current_move, step=self.total_moves_played
+                'game_stats/current_move',
+                self.current_move,
+                step=self.total_moves_played,
+            )
+
+            if win_condition(afterstate_board, Colors.WHITE):
+                self.total_white_wins.assign_add(1)
+            elif win_condition(afterstate_board, Colors.BLACK):
+                self.total_black_wins.assign_add(1)
+
+            tf.summary.scalar(
+                'game_stats/total_white_wins',
+                self.total_white_wins,
+                step=self.total_moves_played,
             )
             tf.summary.scalar(
-                'games_played', self.games_played, step=self.total_moves_played
-            )
-            tf.summary.scalar(
-                'moves_per_game', self.moves_per_game, step=self.total_moves_played
+                'game_stats/total_black_wins',
+                self.total_black_wins,
+                step=self.total_moves_played,
             )
 
             self.writer.flush()
@@ -287,7 +385,7 @@ class TDNardiModel:
         if restore:
             self.restore()
 
-        test_every_n_moves = 1
+        test_every_n_moves = 100
 
         dice = Dice()
         board = Board()
@@ -302,6 +400,8 @@ class TDNardiModel:
 
             if i % test_every_n_moves == 0:
                 self.test_equity()
+                self.test_against_random()
+                self.test_against_heuristics()
 
             board.reset()
             self.reset_episode()
@@ -339,15 +439,30 @@ class TDNardiModel:
                         'games': self.games_played.numpy(),
                         'moves': self.total_moves_played.numpy(),
                         'cur_moves': self.current_move.numpy(),
-                        'avg_t_move': avg_time_per_move,
-                        'max_t_move': max_time_per_move,
+                        'avg_t': avg_time_per_move,
+                        'max_t': max_time_per_move,
                         'loss': self.loss.numpy(),
+                        'white': tf.reduce_sum(self.total_white_wins).numpy(),
+                        'black': tf.reduce_sum(self.total_black_wins).numpy(),
                     }
                 )
 
             self.games_played.assign_add(1)
             moves_p_game = self.total_moves_played.numpy() / self.games_played.numpy()
             self.moves_per_game.assign(moves_p_game)
+
+            with self.writer.as_default():
+                tf.summary.scalar(
+                    'game_stats/games_played',
+                    self.games_played,
+                    step=self.total_moves_played,
+                )
+                tf.summary.scalar(
+                    'game_stats/moves_per_game',
+                    self.moves_per_game,
+                    step=self.total_moves_played,
+                )
+                self.writer.flush()
 
             self.backup()
 
@@ -360,3 +475,18 @@ class TDNardiModel:
             print(f'Restored from {self.manager.latest_checkpoint}')
         else:
             print('Initializing from scratch.')
+
+
+class TDBot:
+    """
+    This bot uses TD model to play
+    """
+
+    def __init__(self, color: str):
+        model = TDNardiModel()
+        model.restore()
+        self._model = model
+        self._color = color
+
+    def find_a_move(self, board, dice_roll) -> list[SingleMove]:
+        return self._model.find_move(self._color, board, dice_roll)

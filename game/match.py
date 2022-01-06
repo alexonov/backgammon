@@ -12,9 +12,9 @@ from game.components import Dice
 from game.components import SingleMove
 from game.gui import CompleteMove
 from game.gui import TerminalGUI
-from game.model.model import TDNardiModel
 from game.rules import find_complete_legal_moves
 from game.rules import win_condition
+from game.td_model import TDNardiModel
 
 
 def parse_moves(moves, splitter=','):

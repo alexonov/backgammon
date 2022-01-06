@@ -3,8 +3,8 @@ classes to represent the board of the game
 
 board positions go from 1 to 24 to conform to standard backgammon notation
 """
+import random
 import re
-from random import randrange
 from typing import NamedTuple
 
 import numpy as np
@@ -55,11 +55,15 @@ class Colors:
 
 
 class Dice:
-    def __init__(self, max_point=6):
+    def __init__(self, max_point=6, seed=None):
         self.max_point = max_point
+        seed = seed or random.randint(1, 100000)
+        self.random = random.Random(seed)
 
     def throw(self):
-        return randrange(1, self.max_point + 1), randrange(1, self.max_point + 1)
+        return self.random.randrange(1, self.max_point + 1), self.random.randrange(
+            1, self.max_point + 1
+        )
 
 
 class SingleMove(NamedTuple):

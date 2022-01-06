@@ -12,8 +12,8 @@ from game.components import Colors
 from game.gui import TerminalGUI
 from game.match import play_match
 from game.match import save_moves
-from game.model.model import TDNardiModel
 from game.rules import find_complete_legal_moves
+from game.td_model import TDNardiModel
 
 
 def position():
