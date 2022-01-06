@@ -195,3 +195,35 @@ def test_encode(position, turn, ind, expected):
     board.setup_position(position)
     encoded = board.encode(turn)
     assert_almost_equal(encoded[ind], expected, decimal=3)
+
+
+@mark.parametrize(
+    'position, color, expected',
+    [
+        (
+            [
+                '18[W1]',
+                '19[W1]',
+                '22[W2]',
+                '23[W1]',
+                '24[W5]',
+            ],
+            Colors.WHITE,
+            False,
+        ),
+        (
+            [
+                '18[B1]',
+                '19[W1]',
+                '22[W2]',
+                '23[W1]',
+                '24[W5]',
+            ],
+            Colors.WHITE,
+            True,
+        ),
+    ],
+)
+def test_has_all_checkers_home(position, color, expected):
+    board = Board.generate_from_position(position)
+    assert board.has_all_checkers_home(color) == expected

@@ -12,6 +12,7 @@ from game.bot import RandomBot
 from game.components import Board
 from game.components import Colors
 from game.components import Dice
+from game.gui import TerminalGUI
 from game.rules import win_condition
 from game.td_model import TDBot
 
@@ -138,6 +139,23 @@ def debug_move():
     end = timer()
 
     print(f'{end - start} secs: move {move}')
+
+
+def show_position(file=None, position=None):
+    # file = 'bearingoff_position.pos'
+    # file = 'test_position.pos'
+    # file = 'rule_six_block_position.pos'
+    # file = 'bug.pos'
+    file = 'double_benchmark.pos'
+
+    if file is not None:
+        with open(Path('data') / 'board_positions' / file, 'r') as f:
+            position = f.readlines()
+
+    board = Board()
+    board.setup_position(position)
+    gui = TerminalGUI()
+    gui.show_board(board)
 
 
 if __name__ == '__main__':

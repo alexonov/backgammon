@@ -1,7 +1,6 @@
 import multiprocessing as mp
 import time
 from collections import defaultdict
-from pathlib import Path
 from timeit import default_timer as timer
 
 from game.bot import Bot
@@ -9,35 +8,9 @@ from game.bot import heuristics_eval_func
 from game.bot import random_eval_func
 from game.components import Board
 from game.components import Colors
-from game.gui import TerminalGUI
 from game.match import play_match
-from game.match import save_moves
 from game.rules import find_complete_legal_moves
 from game.td_model import TDNardiModel
-
-
-def position():
-    # file = 'bearingoff_position.pos'
-    # file = 'test_position.pos'
-    # file = 'rule_six_block_position.pos'
-    # file = 'bug.pos'
-    file = 'double_benchmark.pos'
-
-    with open(Path('data') / 'board_positions' / file, 'r') as f:
-        data = f.readlines()
-    board = Board()
-    board.setup_position(data)
-    gui = TerminalGUI()
-    gui.show_board(board)
-
-
-def play_game():
-    moves, score = play_match(
-        white=Bot(Colors.WHITE, eval_func=random_eval_func),
-        black=Bot(Colors.BLACK, eval_func=heuristics_eval_func),
-        show_gui=True,
-    )
-    save_moves(moves)
 
 
 def compare_bots(num_games=10):

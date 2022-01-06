@@ -1,9 +1,9 @@
 from game.bot import HeuristicsBot
 from game.bot import RandomBot  # noqa
-from game.bot import TDBot
 from game.components import Colors
 from game.match import play_match
 from game.match import save_moves
+from game.td_model import TDBot
 
 
 def main():

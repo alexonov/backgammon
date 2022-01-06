@@ -26,6 +26,8 @@ def heuristics_eval_func(board: Board, moves: list[SingleMove]) -> float:
     - prefer moves that take from head
     - prefer moves that minimize pip count
     - prefer bearing off moves
+    - prefer moves that spread out checkers
+    - prefer moves with smaller mean and median num checkers per slot
 
     all have equal importance
     """
@@ -45,18 +47,31 @@ def heuristics_eval_func(board: Board, moves: list[SingleMove]) -> float:
     h_blocks_two = len(blocks_of_two)
 
     # evaluate heuristic 3: prefer moves that take from head
-    is_from_head = any(sm.position_from == MIN_POSITION for sm in moves)
-    h_from_head = int(is_from_head)
+    h_from_head = -fake_board.num_on_head(color) / 15
 
     # evaluate heuristic 4: prefer moves that minimize pip count
     max_pip_count = ((MAX_POSITION + 1) - MIN_POSITION) * 15
-    h_pip_count = fake_board.pip_count(color) / max_pip_count
+    h_pip_count = -fake_board.pip_count(color) / max_pip_count
 
     # evaluate heuristic 5: prefer bearing off moves
-    num_bear_off = sum(int(sm.position_to > MAX_POSITION) for sm in moves)
-    h_bear_off = num_bear_off
+    h_bear_off = fake_board.num_on_tray(color)
 
-    return h_blocks_six + h_blocks_two + h_from_head - h_pip_count + h_bear_off
+    # checkers distribution
+    stats = fake_board.checkers_distribution(color)
+    h_ratio = stats['spread_ratio']
+    h_mean = -stats['mean']
+    h_median = -stats['median']
+
+    return (
+        h_blocks_six
+        + h_blocks_two
+        + h_from_head
+        + h_pip_count
+        + h_bear_off
+        + h_ratio
+        + h_mean
+        + h_median
+    )
 
 
 class Bot:

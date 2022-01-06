@@ -159,7 +159,7 @@ class TDNardiModel:
             _run_game(Dice(seed=seed), Colors.BLACK)
 
         return (
-            games_won[Colors.opponent(bot.color)] / num_games,
+            games_won[Colors.opponent(bot.color)] / (num_games * 2),
             scores[Colors.opponent(bot.color)] / scores[bot.color],
         )
 
@@ -170,6 +170,9 @@ class TDNardiModel:
             tf.summary.scalar(
                 'tests/win_ratio_random', win_ratio, step=self.games_played
             )
+            tf.summary.scalar(
+                'tests/score_ratio_random', score_ratio, step=self.games_played
+            )
             self.writer.flush()
 
     def test_against_heuristics(self, num_games=10):
@@ -178,6 +181,9 @@ class TDNardiModel:
         with self.writer.as_default():
             tf.summary.scalar(
                 'tests/win_ratio_heuristics', win_ratio, step=self.games_played
+            )
+            tf.summary.scalar(
+                'tests/score_ratio_heuristics', score_ratio, step=self.games_played
             )
             self.writer.flush()
 

@@ -168,7 +168,7 @@ class Slot:
 
 
 class Board:
-    HOME_POINTS = list(range(MAX_POSITION - 6, MAX_POSITION + 1))
+    HOME_POINTS = list(range(MAX_POSITION - 5, MAX_POSITION + 1))
     YARD_POINTS = list(range(MIN_POSITION, MIN_POSITION + 6))
     BOARD_POINTS = list(range(MIN_POSITION, MAX_POSITION + 1))
 
@@ -473,6 +473,13 @@ class Board:
             pip_count = self.pip_count(color) / max_pip_count
             encoded[length_so_far + 2 + 2 + i] = pip_count
 
+            # TODO: add following
+            # has any checkers home
+            # has all checkers home
+            # spread ratio
+            # separate feature for starting point instead of the normal representation (reduce feature value)
+            # probabilities?
+
         return encoded
 
     @property
@@ -499,3 +506,40 @@ class Board:
 
     def __hash__(self):
         return str(self.export_position())
+
+    def checkers_distribution(self, color):
+        """
+        spread ratio = num occupied slots / num checkers in play
+        median and mean num of checkers per slot
+        """
+        num_slots = 0
+        num_checkers = 0
+        checkers = []
+        for p in self.BOARD_POINTS:
+            slot = self.get_slot(color, p)
+            if slot.color == color:
+                num_slots += 1
+                num_checkers += slot.num_checkers
+                checkers.append(slot.num_checkers)
+
+        try:
+            spread = num_slots / num_checkers
+        except ZeroDivisionError:
+            spread = 1
+
+        return {
+            'mean': np.mean(checkers),
+            'median': np.median(checkers),
+            'spread_ratio': spread,
+        }
+
+    def num_on_head(self, color):
+        head = self.get_slot(color, MIN_POSITION)
+        if head.color == color:
+            return head.num_checkers
+        else:
+            return 0
+
+    def num_on_tray(self, color):
+        tray = self.off_tray[color]
+        return tray.num_checkers

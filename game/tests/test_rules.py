@@ -235,6 +235,19 @@ def test_find_complete_legal_moves(color, dice, expected):
             ['W:1->6', 'W:6->11', 'W:6->11'],
             False,
         ),  # bug
+        (
+            [
+                '18[W1]',
+                '19[W1]',
+                '22[W2]',
+                '23[W1]',
+                '24[W5]',
+            ],
+            Colors.WHITE,
+            (1, 2),
+            ['W:24->25', 'W:23->25'],
+            False,
+        ),  # bug
     ],
 )
 def test_find_complete_legal_moves_details(

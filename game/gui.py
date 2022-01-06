@@ -225,10 +225,14 @@ class TerminalGUI:
                     )
 
                 # display equity
-                move_lines[0] += '  white win:'.ljust(14, ' ') + f'{equity[0]:.2f}'
-                move_lines[1] += '  white mars:'.ljust(14, ' ') + f'{equity[1]:.2f}'
-                move_lines[2] += '  black win:'.ljust(14, ' ') + f'{equity[2]:.2f}'
-                move_lines[3] += '  black mars:'.ljust(14, ' ') + f'{equity[3]:.2f}'
+                # move_lines[0] += '  white win:'.ljust(14, ' ') + f'{equity[0]:.2f}'
+                # move_lines[1] += '  white mars:'.ljust(14, ' ') + f'{equity[1]:.2f}'
+                # move_lines[2] += '  black win:'.ljust(14, ' ') + f'{equity[2]:.2f}'
+                # move_lines[3] += '  black mars:'.ljust(14, ' ') + f'{equity[3]:.2f}'
+                move_lines[0] += '  white equity:'.ljust(14, ' ') + f'{equity[0]:.2f}'
+                move_lines[1] += (
+                    '  black equity:'.ljust(14, ' ') + f'{1 - equity[0]:.2f}'
+                )
 
             board_rows = [b + l for b, l in zip(board_rows, move_lines)]
 
