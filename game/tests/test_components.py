@@ -227,3 +227,16 @@ def test_encode(position, turn, ind, expected):
 def test_has_all_checkers_home(position, color, expected):
     board = Board.generate_from_position(position)
     assert board.has_all_checkers_home(color) == expected
+
+
+@mark.parametrize(
+    'position, color, key, expected',
+    [
+        (['11[B1]', '12[B1]'], Colors.BLACK, 'mean_distance', 1),
+        (['1[W15]', '13[B15]'], Colors.BLACK, 'mean_distance', 0),
+    ],
+)
+def test_checkers_distribution(position, color, key, expected):
+    board = Board.generate_from_position(position)
+    stats = board.checkers_distribution(color)
+    assert stats[key] == expected

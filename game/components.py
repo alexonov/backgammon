@@ -173,7 +173,7 @@ class Board:
     BOARD_POINTS = list(range(MIN_POSITION, MAX_POSITION + 1))
 
     BITS_PER_COLOR_SLOT = 3
-    ENCODED_SHAPE = (BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 2 + 6,)
+    # ENCODED_SHAPE = (BITS_PER_COLOR_SLOT * 24 * 2 + 2 + 2 + 6,)
 
     def __init__(self):
         self.slots = [Slot.generate_from_position(i) for i in self.BOARD_POINTS]
@@ -361,6 +361,9 @@ class Board:
             else:
                 blocks.append(block)
                 block = []
+
+        if len(block) != 0:
+            blocks.append(block)
         return blocks
 
     def find_blocks_min_length(self, color, min_length):
@@ -415,6 +418,10 @@ class Board:
     def encode(self, color_turn):
         """
         encodes the board for learning
+        head position encoded differently:
+         - if all head -> 1 1 1
+         - if > 1 head -> 1 n/15 0
+         - if 1 head -> 1 0 0
         each slot is represented by 3 inputs for each color (total 6 per slot)
          - if no checkers -> 0 0 0
          - if 1 checker -> 1 0 0
@@ -424,8 +431,11 @@ class Board:
         n / 15
         also 2 bits to signify whose move it is
         """
-        encoded = np.zeros(self.ENCODED_SHAPE)
         BITS_PER_COLOR_SLOT = self.BITS_PER_COLOR_SLOT
+
+        # (BITS_PER_COLOR_SLOT * num_checkers + tray + move + features) * 2
+        shape = (BITS_PER_COLOR_SLOT * 24 * 2 + 1 + 1 + 10) * 2
+        encoded = np.zeros(shape)
 
         for p in self.BOARD_POINTS:
             ind = p - 1
@@ -462,22 +472,48 @@ class Board:
         max_pip_count = ((MAX_POSITION + 1) - MIN_POSITION) * 15
 
         for i, color in enumerate(Colors.colors):
+            feature_counter = 0
+
+            def _ind():
+                return length_so_far + feature_counter * 2 + i
+
             blocks_of_six = self.find_blocks_min_length(color, 6)
             num_blocks_six = len(blocks_of_six)
-            encoded[length_so_far + i] = num_blocks_six
+            encoded[_ind()] = num_blocks_six
+            feature_counter += 1
 
             blocks_of_two = self.find_blocks_min_length(color, 2)
             num_blocks_two = len(blocks_of_two)
-            encoded[length_so_far + 2 + i] = num_blocks_two
+            encoded[_ind()] = num_blocks_two
+            feature_counter += 1
 
             pip_count = self.pip_count(color) / max_pip_count
-            encoded[length_so_far + 2 + 2 + i] = pip_count
+            encoded[_ind()] = pip_count
+            feature_counter += 1
+
+            has_checkers_home = self.has_any_checkers_home(color)
+            encoded[_ind()] = has_checkers_home
+            feature_counter += 1
+
+            has_all_checkers_home = self.has_all_checkers_home(color)
+            encoded[_ind()] = has_all_checkers_home
+            feature_counter += 1
+
+            stats = self.checkers_distribution(color)
+            encoded[_ind()] = stats['mean']
+            feature_counter += 1
+            encoded[_ind()] = stats['median']
+            feature_counter += 1
+            encoded[_ind()] = stats['spread_ratio']
+            feature_counter += 1
+            encoded[_ind()] = stats['mean_distance']
+            feature_counter += 1
+
+            num_opponent_behind = self.num_opponent_behind(color)
+            encoded[_ind()] = num_opponent_behind
+            feature_counter += 1
 
             # TODO: add following
-            # has any checkers home
-            # has all checkers home
-            # spread ratio
-            # separate feature for starting point instead of the normal representation (reduce feature value)
             # probabilities?
 
         return encoded
@@ -511,16 +547,32 @@ class Board:
         """
         spread ratio = num occupied slots / num checkers in play
         median and mean num of checkers per slot
+        num of single checkers
+        mean distance between occupied slots
         """
         num_slots = 0
         num_checkers = 0
         checkers = []
+        occupied_slots = []
         for p in self.BOARD_POINTS:
             slot = self.get_slot(color, p)
             if slot.color == color:
                 num_slots += 1
                 num_checkers += slot.num_checkers
                 checkers.append(slot.num_checkers)
+                occupied_slots.append(p)
+
+        try:
+            distances = (
+                [
+                    occupied_slots[i + 1] - occupied_slots[i]
+                    for i in range(0, len(occupied_slots) - 1)
+                ]
+                if len(occupied_slots) != 1
+                else [0]
+            )
+        except IndexError:
+            distances = [0]
 
         try:
             spread = num_slots / num_checkers
@@ -528,9 +580,10 @@ class Board:
             spread = 1
 
         return {
-            'mean': np.mean(checkers),
-            'median': np.median(checkers),
+            'mean': np.mean(checkers) if checkers else 0,
+            'median': np.median(checkers) if checkers else 0,
             'spread_ratio': spread,
+            'mean_distance': np.mean(distances) if len(distances) != 0 else 0,
         }
 
     def num_on_head(self, color):
@@ -543,3 +596,21 @@ class Board:
     def num_on_tray(self, color):
         tray = self.off_tray[color]
         return tray.num_checkers
+
+    def num_opponent_behind(self, color):
+        for p in self.BOARD_POINTS:
+            slot = self.get_slot(color, p)
+            if slot.color == color:
+                opponent_position = slot.position[Colors.opponent(color)]
+                return self.num_checkers_before_position(
+                    Colors.opponent(color), opponent_position
+                )
+        else:
+            return 0
+
+    @classmethod
+    @property
+    def encode_shape(cls):
+        b = cls()
+        b.reset()
+        return b.encode(Colors.WHITE).shape

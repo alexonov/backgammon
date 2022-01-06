@@ -29,7 +29,7 @@ class TDNardiModel:
     _LOGS_PATH = Path('data') / 'logs'
 
     def __init__(self):
-        inputs = Input(shape=Board.ENCODED_SHAPE, name='input')
+        inputs = Input(shape=Board.encode_shape, name='input')
         hidden = Dense(80, activation='sigmoid', name='hidden_layer_1')(inputs)
         # outputs = Dense(4, activation='sigmoid', name='output')(hidden)
         # self.model = Model(inputs=inputs, outputs=outputs)

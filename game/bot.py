@@ -61,6 +61,7 @@ def heuristics_eval_func(board: Board, moves: list[SingleMove]) -> float:
     h_ratio = stats['spread_ratio']
     h_mean = -stats['mean']
     h_median = -stats['median']
+    h_distance = -stats['mean_distance']
 
     return (
         h_blocks_six
@@ -71,6 +72,7 @@ def heuristics_eval_func(board: Board, moves: list[SingleMove]) -> float:
         + h_ratio
         + h_mean
         + h_median
+        + h_distance
     )
 
 
