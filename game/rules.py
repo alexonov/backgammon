@@ -322,3 +322,10 @@ def win_condition(board: Board, color: str):
             return 2
     else:
         return None
+
+
+def has_won(board, color):
+    if board.num_checkers(color) == 0:
+        return 0
+    else:
+        return 1

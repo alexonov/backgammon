@@ -23,7 +23,7 @@ from game.rules import win_condition
 
 class TDNardiModel:
     _LAMBDA = 0
-    _ALPHA = 0.05
+    _ALPHA = 0.01
 
     _CHECKPOINTS_PATH = Path('data') / 'checkpoints'
     _LOGS_PATH = Path('data') / 'logs'
@@ -31,9 +31,6 @@ class TDNardiModel:
     def __init__(self):
         inputs = Input(shape=Board.encode_shape, name='input')
         hidden = Dense(80, activation='sigmoid', name='hidden_layer_1')(inputs)
-        # outputs = Dense(4, activation='sigmoid', name='output')(hidden)
-        # self.model = Model(inputs=inputs, outputs=outputs)
-
         outputs_single = Dense(1, activation='sigmoid', name='output')(hidden)
         self.model = Model(inputs=inputs, outputs=outputs_single)
 
@@ -96,32 +93,31 @@ class TDNardiModel:
         black_to_mars_equity = self.equity(board, Colors.BLACK)
 
         with self.writer.as_default():
-            for i in range(len(starting_equity)):
-                tf.summary.scalar(
-                    f'tests/starting_equity/starting_equity_{i}',
-                    starting_equity[i],
-                    step=self.games_played,
-                )
-                tf.summary.scalar(
-                    f'tests/white_to_win_equity/white_to_win_equity_{i}',
-                    white_to_win_equity[i],
-                    step=self.games_played,
-                )
-                tf.summary.scalar(
-                    f'tests/white_to_mars_equity/white_to_mars_equity_{i}',
-                    white_to_mars_equity[i],
-                    step=self.games_played,
-                )
-                tf.summary.scalar(
-                    f'tests/black_to_win_equity/black_to_win_equity_{i}',
-                    black_to_win_equity[i],
-                    step=self.games_played,
-                )
-                tf.summary.scalar(
-                    f'tests/black_to_mars_equity/black_to_mars_equity_{i}',
-                    black_to_mars_equity[i],
-                    step=self.games_played,
-                )
+            tf.summary.scalar(
+                'tests/equity_starting',
+                starting_equity[0],
+                step=self.games_played,
+            )
+            tf.summary.scalar(
+                'tests/equity_white_to_win',
+                white_to_win_equity[0],
+                step=self.games_played,
+            )
+            tf.summary.scalar(
+                'tests/equity_white_to_mars',
+                white_to_mars_equity[0],
+                step=self.games_played,
+            )
+            tf.summary.scalar(
+                'tests/equity black_to_win',
+                black_to_win_equity[0],
+                step=self.games_played,
+            )
+            tf.summary.scalar(
+                'tests/equity_black_to_mars',
+                black_to_mars_equity[0],
+                step=self.games_played,
+            )
             self.writer.flush()
 
     def test_against_bot(self, bot: Bot, num_games=50):
@@ -168,10 +164,10 @@ class TDNardiModel:
         win_ratio, score_ratio = self.test_against_bot(bot, num_games)
         with self.writer.as_default():
             tf.summary.scalar(
-                'tests/win_ratio_random', win_ratio, step=self.games_played
+                'tests/random_win_ratio', win_ratio, step=self.games_played
             )
             tf.summary.scalar(
-                'tests/score_ratio_random', score_ratio, step=self.games_played
+                'tests/random_score_ratio', score_ratio, step=self.games_played
             )
             self.writer.flush()
 
@@ -180,10 +176,10 @@ class TDNardiModel:
         win_ratio, score_ratio = self.test_against_bot(bot, num_games)
         with self.writer.as_default():
             tf.summary.scalar(
-                'tests/win_ratio_heuristics', win_ratio, step=self.games_played
+                'tests/heuristics_win_ratio', win_ratio, step=self.games_played
             )
             tf.summary.scalar(
-                'tests/score_ratio_heuristics', score_ratio, step=self.games_played
+                'tests/heuristics_score_ratio', score_ratio, step=self.games_played
             )
             self.writer.flush()
 
@@ -201,18 +197,7 @@ class TDNardiModel:
         max_move = None
         max_prob = -np.inf
 
-        # def _get_prob(output):
-        #     if color == Colors.WHITE:
-        #         return output[0][0] + output[0][1]
-        #     else:
-        #         return output[0][2] + output[0][3]
         def _get_prob(out):
-            # prob_white = out[0][0] + 2 * out[0][1]
-            # prob_black = out[0][2] + 2 * out[0][3]
-            # if color == Colors.WHITE:
-            #     return prob_white - prob_black
-            # else:
-            #     return prob_black - prob_white
             if color == Colors.WHITE:
                 return out[0]
             else:
@@ -226,13 +211,6 @@ class TDNardiModel:
 
             state = afterstate.encode(Colors.opponent(color))
             output = self.model(state[np.newaxis])
-
-            # output has 4 probabilities
-            # 0. prob of white winning
-            # 1. prob of white winning with mars
-            # 2. prob of black winning
-            # 3. prob of black winning with mars
-            # select the one that gives highest sum
 
             prob = _get_prob(output)
 
@@ -272,14 +250,6 @@ class TDNardiModel:
 
         def _reward(after_board):
             points = {c: win_condition(after_board, c) for c in Colors.colors}
-            # white_won = win_condition(after_board, Colors.WHITE)
-            # black_won = win_condition(after_board, Colors.BLACK)
-            # r = np.zeros((4,))
-            # if white_won:
-            #     r[white_won - 1] = white_won
-            # elif black_won:
-            #     r[black_won + 2 - 1] = black_won
-            # return tf.Variable(r[np.newaxis], dtype='float32')
 
             # ignoring mars for now
             return 1 if points[Colors.WHITE] else 0

@@ -42,7 +42,8 @@ def play_match(white=None, black=None, show_gui=False):
     board = Board()
     dice = Dice()
     bots = {}
-    players = {}
+    player_name = {}
+    player_type = {}
 
     model = TDNardiModel()
     model.restore()
@@ -50,15 +51,19 @@ def play_match(white=None, black=None, show_gui=False):
     # if None - then human
     if white is not None:
         bots[Colors.WHITE] = white
-        players[Colors.WHITE] = Players.AI
+        player_type[Colors.WHITE] = Players.AI
+        player_name[Colors.WHITE] = white.__class__.__name__
     else:
-        players[Colors.WHITE] = Players.HUMAN
+        player_type[Colors.WHITE] = Players.HUMAN
+        player_name[Colors.WHITE] = Players.HUMAN
 
     if black is not None:
         bots[Colors.BLACK] = black
-        players[Colors.BLACK] = Players.AI
+        player_type[Colors.BLACK] = Players.AI
+        player_name[Colors.BLACK] = black.__class__.__name__
     else:
-        players[Colors.BLACK] = Players.HUMAN
+        player_type[Colors.BLACK] = Players.HUMAN
+        player_name[Colors.BLACK] = Players.HUMAN
 
     moves = []
 
@@ -87,10 +92,12 @@ def play_match(white=None, black=None, show_gui=False):
 
         if show_gui:
             _show_board(color_to_move)
-            _show_message(f'Player {color_to_move} turn.')
+            _show_message(
+                f'Player {color_to_move} ({player_name[color_to_move]}) turn.'
+            )
             _show_message(f'Throwing dice: {dice_roll}')
 
-        if players[color_to_move] == Players.HUMAN:
+        if player_type[color_to_move] == Players.HUMAN:
             allowed_moves = find_complete_legal_moves(
                 board, color_to_move, dice_roll, filter_moves=False
             )
@@ -126,7 +133,9 @@ def play_match(white=None, black=None, show_gui=False):
                         print('Not an appropriate move.')
 
                 _show_board(color_to_move)
-                _show_message(f'Player {color_to_move} turn.')
+                _show_message(
+                    f'Player {color_to_move} ({player_name[color_to_move]}) turn.'
+                )
                 _show_message(f'Throwing dice: {dice_roll}')
 
             player_moves = moves_made
@@ -148,7 +157,7 @@ def play_match(white=None, black=None, show_gui=False):
     if show_gui:
         _show_board(Colors.opponent(last_color))
         _show_message(
-            f'Player {last_color} won with {win_condition(board, last_color)}!'
+            f'Player {last_color} ({player_name[last_color]}) won with {win_condition(board, last_color)}!'
         )
     return moves, {'winner': last_color, 'score': win_condition(board, last_color)}
 

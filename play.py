@@ -1,6 +1,7 @@
-from game.bot import HeuristicsBot
+from game.bot import HeuristicsBot  # noqa
 from game.bot import RandomBot  # noqa
 from game.components import Colors
+from game.hill_model import HillClimberBot  # noqa
 from game.match import play_match
 from game.match import save_moves
 from game.td_model import TDBot
@@ -8,7 +9,7 @@ from game.td_model import TDBot
 
 def main():
     moves, score = play_match(
-        white=HeuristicsBot(Colors.WHITE),
+        white=TDBot(Colors.WHITE),
         black=TDBot(Colors.BLACK),
         show_gui=True,
     )
