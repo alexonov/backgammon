@@ -9,7 +9,7 @@ from game.td_model import TDBot
 
 def main():
     moves, score = play_match(
-        white=TDBot(Colors.WHITE),
+        # white=TDBot(Colors.WHITE),
         black=TDBot(Colors.BLACK),
         show_gui=True,
     )

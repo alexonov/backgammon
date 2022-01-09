@@ -22,11 +22,11 @@ from game.rules import win_condition
 
 
 class TDNardiModel:
-    _LAMBDA = 0
+    _LAMBDA = 0.05
     _ALPHA = 0.01
 
-    _CHECKPOINTS_PATH = Path('data') / 'checkpoints'
-    _LOGS_PATH = Path('data') / 'logs'
+    _CHECKPOINTS_PATH = Path('data') / 'checkpoints' / 'TDModel'
+    _LOGS_PATH = Path('data') / 'logs' / 'TDModel'
 
     def __init__(self):
         inputs = Input(shape=Board.encode_shape, name='input')
@@ -83,13 +83,13 @@ class TDNardiModel:
         board.setup_position(['24[W1]', '7[B15]'])
         white_to_win_equity = self.equity(board, Colors.WHITE)
 
-        board.setup_position(['24[W1]', '13[B15]'])
+        board.setup_position(['24[W1]', '13[B1]'])
         white_to_mars_equity = self.equity(board, Colors.WHITE)
 
         board.setup_position(['12[B1]', '19[W15]'])
         black_to_win_equity = self.equity(board, Colors.BLACK)
 
-        board.setup_position(['12[B1]', '1[W15]'])
+        board.setup_position(['12[B1]', '1[W1]'])
         black_to_mars_equity = self.equity(board, Colors.BLACK)
 
         with self.writer.as_default():
@@ -154,10 +154,16 @@ class TDNardiModel:
             _run_game(Dice(seed=seed), Colors.WHITE)
             _run_game(Dice(seed=seed), Colors.BLACK)
 
-        return (
-            games_won[Colors.opponent(bot.color)] / (num_games * 2),
-            scores[Colors.opponent(bot.color)] / scores[bot.color],
-        )
+        try:
+            return (
+                games_won[Colors.opponent(bot.color)] / (num_games * 2),
+                scores[Colors.opponent(bot.color)] / scores[bot.color],
+            )
+        except ZeroDivisionError:
+            return (
+                games_won[Colors.opponent(bot.color)] / (num_games * 2),
+                scores[Colors.opponent(bot.color)],
+            )
 
     def test_against_random(self, num_games=10):
         bot = RandomBot(Colors.WHITE)
@@ -276,29 +282,29 @@ class TDNardiModel:
 
         with self.writer.as_default():
             for i in range(len(grads)):
-                var_name = self.model.trainable_variables[i].name
 
                 # e-> = lambda * e-> + <grad of output w.r.t weights>
                 self.trace[i].assign((self._LAMBDA * self.trace[i]) + grads[i])
 
                 grad_trace = self._ALPHA * td_error * self.trace[i]
 
-                tf.summary.histogram(
-                    var_name + '/traces', self.trace[i], step=self.total_moves_played
-                )
-                tf.summary.histogram(
-                    var_name,
-                    self.model.trainable_variables[i],
-                    step=self.total_moves_played,
-                )
-                tf.summary.histogram(
-                    var_name + '/gradients', grads[i], step=self.total_moves_played
-                )
-                tf.summary.histogram(
-                    var_name + '/grad_traces',
-                    grad_trace,
-                    step=self.total_moves_played,
-                )
+                # var_name = self.model.trainable_variables[i].name
+                # tf.summary.histogram(
+                #     var_name + '/traces', self.trace[i], step=self.total_moves_played
+                # )
+                # tf.summary.histogram(
+                #     var_name,
+                #     self.model.trainable_variables[i],
+                #     step=self.total_moves_played,
+                # )
+                # tf.summary.histogram(
+                #     var_name + '/gradients', grads[i], step=self.total_moves_played
+                # )
+                # tf.summary.histogram(
+                #     var_name + '/grad_traces',
+                #     grad_trace,
+                #     step=self.total_moves_played,
+                # )
 
                 self.model.trainable_variables[i].assign_add(grad_trace)
 
